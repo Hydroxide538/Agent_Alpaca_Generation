@@ -1,54 +1,283 @@
-# LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptions Crew
+# CrewAI Workflow Manager for Synthetic Data & RAG
 
-Welcome to the LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptions Crew project, powered by [crewAI](https://crewai.com). This template is designed to help you set up a multi-agent AI system with ease, leveraging the powerful and flexible framework provided by crewAI. Our goal is to enable your agents to collaborate effectively on complex tasks, maximizing their collective intelligence and capabilities.
+A comprehensive web-based interface for managing CrewAI workflows focused on synthetic data generation and RAG (Retrieval-Augmented Generation) implementation. This project provides a modern frontend and robust backend to leverage CrewAI's multi-agent capabilities with support for both OpenAI and Ollama models.
 
-## Installation
+## 🚀 Features
 
-Ensure you have Python >=3.10 <3.13 installed on your system. This project uses [UV](https://docs.astral.sh/uv/) for dependency management and package handling, offering a seamless setup and execution experience.
+- **Web-based Interface**: Modern, responsive frontend for easy workflow management
+- **Multi-LLM Support**: Compatible with OpenAI GPT models and local Ollama models
+- **Document Processing**: Upload and process PDF, CSV, and TXT files
+- **Real-time Updates**: WebSocket-based live progress tracking
+- **GPU Optimization**: Built-in support for dual RTX 4090 GPU setups
+- **Flexible Workflows**: Run full workflows or individual components (data generation, RAG implementation)
+- **Model Testing**: Built-in model connectivity and performance testing
+- **Results Management**: Download and view workflow results
 
-First, if you haven't already, install uv:
+## 🏗️ Architecture
 
-```bash
-pip install uv
+### Frontend
+- **HTML/CSS/JavaScript**: Modern responsive interface
+- **Bootstrap 5**: UI framework for consistent styling
+- **WebSocket Client**: Real-time communication with backend
+- **Local Storage**: Configuration persistence
+
+### Backend
+- **FastAPI**: High-performance async web framework
+- **WebSocket Support**: Real-time updates and logging
+- **Multi-LLM Integration**: OpenAI and Ollama support
+- **CrewAI Integration**: Seamless workflow execution
+- **File Management**: Document upload and result storage
+
+### CrewAI Agents
+- **Document Processor**: Handles file uploads and document preparation
+- **Model Selector**: Manages LLM selection and configuration
+- **Data Generator**: Creates synthetic data in Alpaca format
+- **RAG Implementer**: Implements embedding and reranking capabilities
+- **Performance Optimizer**: GPU optimization for high-performance processing
+
+## 📋 Prerequisites
+
+- **Python**: 3.10 or higher (< 3.13)
+- **Operating System**: Windows, macOS, or Linux
+- **Hardware**: 
+  - Minimum: 8GB RAM, modern CPU
+  - Recommended: 16GB+ RAM, dual RTX 4090 GPUs
+- **Optional**: Ollama installed for local model support
+
+## 🛠️ Installation
+
+### Quick Start
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options
+   ```
+
+2. **Run the startup script**:
+   ```bash
+   python start_server.py
+   ```
+
+   This will:
+   - Check Python version compatibility
+   - Install all required dependencies
+   - Create necessary directories
+   - Check Ollama status (if applicable)
+   - Start the web server
+
+3. **Access the application**:
+   Open your browser and navigate to `http://localhost:8000`
+
+### Manual Installation
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+2. **Create environment file** (optional):
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Start the server**:
+   ```bash
+   uvicorn backend.app:app --host 0.0.0.0 --port 8000
+   ```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+```env
+# OpenAI Configuration (optional)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Ollama Configuration
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+
+# GPU Configuration
+CUDA_VISIBLE_DEVICES=0,1
+NVIDIA_VISIBLE_DEVICES=0,1
 ```
 
-Next, navigate to your project directory and install the dependencies:
+### Ollama Setup (Optional)
 
-(Optional) Lock the dependencies and install them by using the CLI command:
+If you want to use local models via Ollama:
+
+1. **Install Ollama**: Download from [https://ollama.ai](https://ollama.ai)
+
+2. **Pull models**:
+   ```bash
+   ollama pull llama3.2
+   ollama pull mistral
+   ollama pull nomic-embed-text
+   ```
+
+3. **Start Ollama server**:
+   ```bash
+   ollama serve
+   ```
+
+## 🎯 Usage
+
+### 1. Configure Models
+
+- **Data Generation Model**: Select from OpenAI GPT models or Ollama models
+- **Embedding Model**: Choose embedding models for RAG implementation
+- **Reranking Model**: Optional model for result reranking
+- **API Keys**: Provide OpenAI API key if using OpenAI models
+- **Ollama URL**: Configure Ollama server URL (default: http://localhost:11434)
+
+### 2. Upload Documents
+
+- Supported formats: PDF, CSV, TXT
+- Multiple file upload supported
+- Drag and drop interface
+- File validation and preview
+
+### 3. Run Workflows
+
+#### Full Workflow
+Executes all steps: document processing → model selection → data generation → RAG implementation → optimization
+
+#### Partial Workflows
+- **Data Generation Only**: Focus on synthetic data creation
+- **RAG Implementation Only**: Implement retrieval and reranking
+- **Model Testing**: Test model connectivity and performance
+
+### 4. Monitor Progress
+
+- Real-time progress tracking
+- Live log streaming
+- Step-by-step status updates
+- Error reporting and handling
+
+### 5. View Results
+
+- Download generated data and results
+- View results in-browser
+- Export in various formats
+- Result history and management
+
+## 🔍 API Endpoints
+
+### Core Endpoints
+- `GET /` - Serve frontend interface
+- `GET /health` - Health check
+- `POST /upload-documents` - Upload documents
+- `POST /start-workflow` - Start workflow execution
+- `POST /stop-workflow/{workflow_id}` - Stop running workflow
+- `POST /test-models` - Test model connectivity
+
+### WebSocket
+- `WS /ws` - Real-time updates and logging
+
+### Results
+- `GET /download-result/{result_id}` - Download results
+- `GET /view-result/{result_id}` - View results
+- `GET /list-results` - List all results
+
+### Ollama Integration
+- `GET /ollama-models` - List available Ollama models
+- `POST /pull-ollama-model` - Pull new Ollama model
+
+## 🏃‍♂️ Development
+
+### Development Mode
+
+Start the server with auto-reload:
 ```bash
-crewai install
-```
-### Customizing
-
-**Add your `OPENAI_API_KEY` into the `.env` file**
-
-- Modify `src/local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options/config/agents.yaml` to define your agents
-- Modify `src/local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options/config/tasks.yaml` to define your tasks
-- Modify `src/local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options/crew.py` to add your own logic, tools and specific args
-- Modify `src/local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options/main.py` to add custom inputs for your agents and tasks
-
-## Running the Project
-
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
-
-```bash
-$ crewai run
+python start_server.py --reload
 ```
 
-This command initializes the local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options Crew, assembling the agents and assigning them tasks as defined in your configuration.
+### Project Structure
 
-This example, unmodified, will run the create a `report.md` file with the output of a research on LLMs in the root folder.
+```
+├── frontend/                 # Frontend files
+│   ├── index.html            # Main HTML interface
+│   ├── styles.css            # CSS styling
+│   └── script.js             # JavaScript functionality
+├── backend/                  # Backend API
+│   ├── app.py                # FastAPI application
+│   ├── models.py             # Pydantic models
+│   ├── llm_manager.py        # LLM integration
+│   ├── workflow_manager.py   # Workflow execution
+│   └── websocket_manager.py  # WebSocket handling
+├── src/                      # CrewAI source code
+│   └── local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options/
+│       ├── crew.py           # CrewAI crew definition
+│       ├── main.py           # CLI interface
+│       └── config/           # Agent and task configurations
+├── uploads/                  # Uploaded documents
+├── results/                  # Workflow results
+└── logs/                     # Application logs
+```
 
-## Understanding Your Crew
+## 🐛 Troubleshooting
 
-The local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options Crew is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
+### Common Issues
 
-## Support
+1. **Port already in use**:
+   ```bash
+   python start_server.py --port 8001
+   ```
 
-For support, questions, or feedback regarding the LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptions Crew or crewAI.
-- Visit our [documentation](https://docs.crewai.com)
-- Reach out to us through our [GitHub repository](https://github.com/joaomdmoura/crewai)
-- [Join our Discord](https://discord.com/invite/X4JWnZnxPb)
-- [Chat with our docs](https://chatg.pt/DWjSBZn)
+2. **Ollama connection failed**:
+   - Ensure Ollama is running: `ollama serve`
+   - Check Ollama URL in configuration
+   - Verify models are pulled: `ollama list`
 
-Let's create wonders together with the power and simplicity of crewAI.
+3. **OpenAI API errors**:
+   - Verify API key is correct
+   - Check API quota and billing
+   - Ensure model names are valid
+
+4. **GPU not detected**:
+   - Install NVIDIA drivers
+   - Install CUDA toolkit
+   - Verify GPU visibility: `nvidia-smi`
+
+### Logs and Debugging
+
+- Check browser console for frontend errors
+- Server logs are displayed in terminal
+- Enable debug mode: `LOG_LEVEL=DEBUG` in `.env`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- [CrewAI](https://crewai.com) - Multi-agent framework
+- [FastAPI](https://fastapi.tiangolo.com) - Web framework
+- [Ollama](https://ollama.ai) - Local LLM support
+- [Bootstrap](https://getbootstrap.com) - UI framework
+
+## 📞 Support
+
+For support, questions, or feedback:
+- Create an issue in the GitHub repository
+- Check the [CrewAI documentation](https://docs.crewai.com)
+- Join the [CrewAI Discord](https://discord.com/invite/X4JWnZnxPb)
+
+---
+
+**Ready to create powerful AI workflows with ease!** 🚀
