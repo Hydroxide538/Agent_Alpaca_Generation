@@ -1,0 +1,38 @@
+---
+upload_and_read_documents:
+  description: Allow users to upload PDFs, CSVs, or TXT files and read their contents
+    for processing.
+  expected_output: Document contents are successfully read and prepared for further
+    processing.
+  async_execution: false
+  agent: document_processor
+select_models:
+  description: Provide options for selecting LLMs for synthetic data generation, embedding,
+    and reranking.
+  expected_output: Selected LLMs for each task are documented and ready for use.
+  async_execution: false
+  agent: model_selector
+generate_synthetic_data_for_each_document:
+  description: Process each document individually to generate synthetic data in Alpaca
+    format, focusing on detailed Q&A generation.
+  expected_output: Synthetic data in Alpaca format is generated for each document,
+    with detailed Q&A specific to the document content.
+  async_execution: false
+  agent: data_generation
+  context:
+  - upload_and_read_documents
+implement_rag_for_each_document:
+  description: Use the selected LLMs for embedding and reranking to enhance data quality
+    for each document.
+  expected_output: RAG capabilities are implemented for each document, improving data
+    quality through effective embedding and reranking.
+  async_execution: false
+  agent: rag_implementation
+  context:
+  - generate_synthetic_data_for_each_document
+optimize_performance:
+  description: Leverage NVIDIA frameworks to optimize the workflow for dual 4090 GPUs.
+  expected_output: Workflow is optimized for high-performance processing using NVIDIA
+    frameworks.
+  async_execution: false
+  agent: optimization

@@ -1,0 +1,23 @@
+[project]
+name = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options"
+version = "0.1.0"
+description = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "crewai[tools]>=0.119.0,<1.0.0"
+]
+
+[project.scripts]
+local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.main:run"
+run_crew = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.main:run"
+train = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.main:train"
+replay = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.main:replay"
+test = "local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.main:test"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
