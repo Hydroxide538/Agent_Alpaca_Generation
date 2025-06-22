@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List, Optional, Any
 import openai
 from backend.models import WorkflowConfig, TestResult
+from backend.message_validator import MessageValidator
 
 logger = logging.getLogger(__name__)
 
@@ -427,16 +428,117 @@ class LLMManager:
             logger.error(f"Error getting embeddings with {model_spec}: {str(e)}")
             raise
     
+    async def safe_ollama_completion(self, model_spec: str, messages: List[Dict[str, Any]], config: Dict[str, Any]) -> str:
+        """
+        Safe wrapper for Ollama completion with message validation
+        Prevents "list index out of range" errors in litellm transformations
+        """
+        try:
+            provider, model_name = model_spec.split(":", 1)
+            
+            if provider != "ollama":
+                raise ValueError(f"This method is only for Ollama models, got: {provider}")
+            
+            # Validate and sanitize messages
+            safe_messages = MessageValidator.validate_messages_for_ollama(messages)
+            logger.info(f"Validated {len(messages)} messages to {len(safe_messages)} safe messages")
+            
+            # Resolve the actual model name
+            ollama_url = config.get("ollama_url", self.ollama_base_url)
+            actual_model_name = await self._resolve_ollama_model_name(model_name, ollama_url)
+            
+            # Use direct Ollama API instead of litellm to avoid transformation issues
+            async with aiohttp.ClientSession() as session:
+                # Convert messages to a single prompt for Ollama
+                prompt_parts = []
+                for msg in safe_messages:
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if role == "system":
+                        prompt_parts.append(f"System: {content}")
+                    elif role == "user":
+                        prompt_parts.append(f"User: {content}")
+                    elif role == "assistant":
+                        prompt_parts.append(f"Assistant: {content}")
+                
+                combined_prompt = "\n".join(prompt_parts)
+                if not combined_prompt.strip():
+                    combined_prompt = "Hello, please respond."
+                
+                payload = {
+                    "model": actual_model_name,
+                    "prompt": combined_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.7,
+                        "num_predict": 1000
+                    }
+                }
+                
+                async with session.post(
+                    f"{ollama_url}/api/generate",
+                    json=payload
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("response", "")
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"Ollama API error {response.status}: {error_text}")
+                        
+        except IndexError as e:
+            if "list index out of range" in str(e):
+                logger.warning(f"Caught list index out of range error, using fallback: {str(e)}")
+                # Fallback to simple prompt
+                return await self._fallback_ollama_completion(model_spec, "Please respond to the user's request.", config)
+            raise
+        except Exception as e:
+            logger.error(f"Error in safe_ollama_completion: {str(e)}")
+            raise
+    
+    async def _fallback_ollama_completion(self, model_spec: str, simple_prompt: str, config: Dict[str, Any]) -> str:
+        """Fallback completion method with minimal message structure"""
+        try:
+            provider, model_name = model_spec.split(":", 1)
+            ollama_url = config.get("ollama_url", self.ollama_base_url)
+            actual_model_name = await self._resolve_ollama_model_name(model_name, ollama_url)
+            
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "model": actual_model_name,
+                    "prompt": simple_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.7,
+                        "num_predict": 100
+                    }
+                }
+                
+                async with session.post(
+                    f"{ollama_url}/api/generate",
+                    json=payload
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("response", "I apologize, but I'm having trouble processing your request.")
+                    else:
+                        return "I apologize, but I'm having trouble processing your request."
+                        
+        except Exception as e:
+            logger.error(f"Fallback completion also failed: {str(e)}")
+            return "I apologize, but I'm having trouble processing your request."
+
     async def generate_response(self, model_spec: str, prompt: str, config: Dict[str, Any]) -> str:
         """Generate response using specified model (alias for generate_text with dict config)"""
         try:
             # Convert dict config to WorkflowConfig-like object for compatibility
             class ConfigWrapper:
-                def __init__(self, config_dict):
+                def __init__(self, config_dict, ollama_base_url):
                     self.openai_api_key = config_dict.get("openai_api_key")
-                    self.ollama_url = config_dict.get("ollama_url", self.ollama_base_url)
+                    self.ollama_url = config_dict.get("ollama_url", ollama_base_url)
+                    self.ollama_base_url = self.ollama_url  # Add this attribute for compatibility
             
-            config_obj = ConfigWrapper(config)
+            config_obj = ConfigWrapper(config, self.ollama_base_url)
             return await self.generate_text(model_spec, prompt, config_obj)
             
         except Exception as e:

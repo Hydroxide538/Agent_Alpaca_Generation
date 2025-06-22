@@ -164,9 +164,11 @@ class AlpacaFormatGenerator:
     async def _extract_facts_from_document(self, doc_path: str, config: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract factual information from a document"""
         try:
-            # Read document content
-            with open(doc_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Read document content based on file type
+            content = self._read_document_content(doc_path)
+            if not content:
+                logger.warning(f"Could not read content from {doc_path}")
+                return []
             
             # Use LLM to extract facts
             fact_extraction_prompt = f"""
@@ -194,12 +196,94 @@ class AlpacaFormatGenerator:
             logger.error(f"Fact extraction failed for {doc_path}: {str(e)}")
             return []
     
+    def _read_document_content(self, doc_path: str) -> str:
+        """Read document content based on file type"""
+        try:
+            if doc_path.lower().endswith('.pdf'):
+                # Handle PDF files
+                try:
+                    import pypdf
+                    with open(doc_path, 'rb') as f:
+                        reader = pypdf.PdfReader(f)
+                        content = ""
+                        for page in reader.pages:
+                            content += page.extract_text() + "\n"
+                    return content
+                except ImportError:
+                    logger.warning("pypdf not installed, trying PyPDF2")
+                    try:
+                        import PyPDF2
+                        with open(doc_path, 'rb') as f:
+                            reader = PyPDF2.PdfReader(f)
+                            content = ""
+                            for page in reader.pages:
+                                content += page.extract_text() + "\n"
+                        return content
+                    except ImportError:
+                        logger.warning("PyPDF2 not installed, trying PyMuPDF")
+                        try:
+                            import fitz  # PyMuPDF
+                            doc = fitz.open(doc_path)
+                            content = ""
+                            for page in doc:
+                                content += page.get_text() + "\n"
+                            doc.close()
+                            return content
+                        except ImportError:
+                            logger.error("No PDF reading library available (pypdf, PyPDF2, or PyMuPDF)")
+                            return ""
+                except Exception as e:
+                    logger.error(f"Error reading PDF {doc_path}: {str(e)}")
+                    return ""
+            
+            elif doc_path.lower().endswith('.csv'):
+                # Handle CSV files
+                try:
+                    import pandas as pd
+                    df = pd.read_csv(doc_path)
+                    return df.to_string()
+                except ImportError:
+                    # Fallback to basic CSV reading
+                    import csv
+                    content = ""
+                    with open(doc_path, 'r', encoding='utf-8') as f:
+                        reader = csv.reader(f)
+                        for row in reader:
+                            content += ", ".join(row) + "\n"
+                    return content
+                except Exception as e:
+                    logger.error(f"Error reading CSV {doc_path}: {str(e)}")
+                    return ""
+            
+            else:
+                # Handle text files
+                try:
+                    with open(doc_path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                except UnicodeDecodeError:
+                    # Try with different encoding
+                    try:
+                        with open(doc_path, 'r', encoding='latin-1') as f:
+                            return f.read()
+                    except Exception as e:
+                        logger.error(f"Error reading text file {doc_path}: {str(e)}")
+                        return ""
+                except Exception as e:
+                    logger.error(f"Error reading file {doc_path}: {str(e)}")
+                    return ""
+        
+        except Exception as e:
+            logger.error(f"Error reading document {doc_path}: {str(e)}")
+            return ""
+    
     async def _extract_concepts_from_document(self, doc_path: str, config: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract key concepts and topics from a document"""
         try:
-            # Read document content
-            with open(doc_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Read document content based on file type
+            content = self._read_document_content(doc_path)
+            if not content:
+                logger.warning(f"Could not read content from {doc_path}")
+                return []
             
             # Use LLM to extract concepts
             concept_extraction_prompt = f"""

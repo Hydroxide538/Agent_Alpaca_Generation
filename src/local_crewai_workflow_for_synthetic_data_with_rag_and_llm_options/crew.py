@@ -45,7 +45,7 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
                 )
     
     def _create_llm(self, model_spec: str, config: Dict[str, Any]) -> LLM:
-        """Create LLM instance based on model specification"""
+        """Create LLM instance based on model specification with enhanced error handling"""
         try:
             provider, model_name = model_spec.split(":", 1)
             
@@ -59,10 +59,22 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
                 )
             elif provider == "ollama":
                 ollama_url = config.get('ollama_url', 'http://host.docker.internal:11434')
-                return LLM(
+                # Create LLM with safer configuration for Ollama
+                llm = LLM(
                     model=f"ollama/{model_name}",
                     base_url=ollama_url
                 )
+                
+                # Try to disable tool calling if the attribute exists
+                try:
+                    if hasattr(llm, 'supports_tool_calling'):
+                        llm.supports_tool_calling = False
+                    if hasattr(llm, 'tool_calling'):
+                        llm.tool_calling = False
+                except Exception as attr_error:
+                    print(f"Warning: Could not disable tool calling for {model_spec}: {str(attr_error)}")
+                
+                return llm
             else:
                 raise ValueError(f"Unknown provider: {provider}")
         except Exception as e:

@@ -191,9 +191,25 @@ class WorkflowManager:
             
             def run_crew_workflow():
                 try:
+                    # Create crew instance with enhanced error handling
                     crew_instance = LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew(config=crew_config)
-                    result = crew_instance.crew().kickoff(inputs=inputs)
+                    
+                    # Validate inputs to prevent message formatting issues
+                    safe_inputs = {}
+                    for key, value in inputs.items():
+                        if isinstance(value, list):
+                            # Ensure list items are properly formatted
+                            safe_inputs[key] = [str(item) for item in value if item is not None]
+                        else:
+                            safe_inputs[key] = str(value) if value is not None else ""
+                    
+                    # Execute crew with safe inputs
+                    result = crew_instance.crew().kickoff(inputs=safe_inputs)
                     return {"success": True, "result": result}
+                except IndexError as e:
+                    if "list index out of range" in str(e):
+                        return {"success": False, "error": f"Message formatting error (list index out of range): {str(e)}. This is likely due to incompatible message structure with Ollama API."}
+                    return {"success": False, "error": f"Index error: {str(e)}"}
                 except Exception as e:
                     return {"success": False, "error": str(e)}
             

@@ -206,20 +206,47 @@ async def list_results():
                 result_id = filename[:-5]  # Remove .json extension
                 result_path = os.path.join(RESULTS_DIR, filename)
                 
-                with open(result_path, 'r') as f:
-                    result_data = json.load(f)
-                
-                # Get file size
-                file_size = os.path.getsize(result_path)
-                
-                results.append({
-                    "id": result_id,
-                    "title": result_data.get("title", f"Result {result_id}"),
-                    "description": result_data.get("description", "Workflow result"),
-                    "created_at": result_data.get("created_at"),
-                    "type": result_data.get("type", "unknown"),
-                    "file_size": file_size
-                })
+                try:
+                    with open(result_path, 'r', encoding='utf-8') as f:
+                        result_data = json.load(f)
+                    
+                    # Ensure result_data is a dictionary
+                    if not isinstance(result_data, dict):
+                        logger.warning(f"Result file {filename} contains non-dict data: {type(result_data)}")
+                        # Skip this file or create a default entry
+                        result_data = {
+                            "title": f"Result {result_id}",
+                            "description": "Invalid result format",
+                            "created_at": datetime.now().isoformat(),
+                            "type": "unknown"
+                        }
+                    
+                    # Get file size
+                    file_size = os.path.getsize(result_path)
+                    
+                    results.append({
+                        "id": result_id,
+                        "title": result_data.get("title", f"Result {result_id}"),
+                        "description": result_data.get("description", "Workflow result"),
+                        "created_at": result_data.get("created_at", datetime.now().isoformat()),
+                        "type": result_data.get("type", "unknown"),
+                        "file_size": file_size
+                    })
+                    
+                except json.JSONDecodeError as je:
+                    logger.error(f"Invalid JSON in result file {filename}: {str(je)}")
+                    # Add a placeholder entry for corrupted files
+                    results.append({
+                        "id": result_id,
+                        "title": f"Corrupted Result {result_id}",
+                        "description": "File contains invalid JSON",
+                        "created_at": datetime.now().isoformat(),
+                        "type": "corrupted",
+                        "file_size": os.path.getsize(result_path)
+                    })
+                except Exception as fe:
+                    logger.error(f"Error reading result file {filename}: {str(fe)}")
+                    continue
         
         # Sort by creation date (newest first)
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
