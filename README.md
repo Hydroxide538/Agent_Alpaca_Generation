@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # CrewAI Workflow Manager for Synthetic Data & RAG
+=======
+# Alpacka_Generation_Crew
+>>>>>>> dd83a27498525bac11aa5238b019a92488d584c6
 
 A comprehensive web-based interface for managing CrewAI workflows focused on synthetic data generation and RAG (Retrieval-Augmented Generation) implementation. This project provides a modern frontend and robust backend to leverage CrewAI's multi-agent capabilities with support for both OpenAI and Ollama models.
 
