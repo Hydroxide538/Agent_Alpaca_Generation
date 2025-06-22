@@ -1,0 +1,13 @@
+{
+  "id": "7d700a78-6e37-4cf8-b777-d2c7c0c0dda5",
+  "title": "Synthetic Data Generation Results",
+  "description": "Generated synthetic data for 1 documents",
+  "type": "synthetic_data",
+  "data": {
+    "documents_processed": 1,
+    "model_used": "ollama:mistral-small3.2:latest",
+    "generation_timestamp": "2025-06-22T06:04:38.328687"
+  },
+  "created_at": "2025-06-22T06:04:38.328706",
+  "workflow_id": "485aff86-be57-4c93-ad84-7b5d6a7b58fe"
+}

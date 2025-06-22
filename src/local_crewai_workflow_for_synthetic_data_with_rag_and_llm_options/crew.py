@@ -50,26 +50,45 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
             provider, model_name = model_spec.split(":", 1)
             
             if provider == "openai":
+                api_key = config.get('openai_api_key')
+                if not api_key:
+                    raise ValueError(f"OpenAI API key is required for model {model_spec}")
                 return LLM(
                     model=f"openai/{model_name}",
-                    api_key=config.get('openai_api_key')
+                    api_key=api_key
                 )
             elif provider == "ollama":
+                ollama_url = config.get('ollama_url', 'http://host.docker.internal:11434')
                 return LLM(
                     model=f"ollama/{model_name}",
-                    base_url=config.get('ollama_url', 'http://localhost:11434')
+                    base_url=ollama_url
                 )
             else:
                 raise ValueError(f"Unknown provider: {provider}")
         except Exception as e:
             print(f"Error creating LLM for {model_spec}: {str(e)}")
+            # For Ollama models, we should not fail if there's no OpenAI key
+            if "openai" not in model_spec.lower():
+                print(f"Continuing without LLM for {model_spec} - this may cause issues")
             return None
 
     @agent
     def document_processor(self) -> Agent:
+        # Use basic file tools that don't require embeddings to avoid OpenAI dependency
+        basic_tools = [FileReadTool()]
+        
+        # Only add advanced search tools if we have proper embedding configuration
+        if self.embedding_llm is not None:
+            try:
+                # Try to add search tools, but catch any OpenAI dependency errors
+                basic_tools.extend([PDFSearchTool(), CSVSearchTool(), TXTSearchTool()])
+            except Exception as e:
+                print(f"Warning: Could not initialize search tools due to embedding dependency: {str(e)}")
+                print("Continuing with basic file reading tools only.")
+        
         return Agent(
             config=self.agents_config['document_processor'],
-            tools=[FileReadTool(), PDFSearchTool(), CSVSearchTool(), TXTSearchTool()],
+            tools=basic_tools,
             llm=self.data_generation_llm,
         )
 
@@ -94,7 +113,7 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
         return Agent(
             config=self.agents_config['rag_implementation'],
             tools=[],
-            llm=self.embedding_llm or self.data_generation_llm,
+            llm=self.data_generation_llm,  # Use data generation LLM for text generation, not embedding LLM
         )
 
     @agent
@@ -108,9 +127,21 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
 
     @task
     def upload_and_read_documents(self) -> Task:
+        # Use basic file tools that don't require embeddings to avoid OpenAI dependency
+        basic_tools = [FileReadTool()]
+        
+        # Only add advanced search tools if we have proper embedding configuration
+        if self.embedding_llm is not None:
+            try:
+                # Try to add search tools, but catch any OpenAI dependency errors
+                basic_tools.extend([PDFSearchTool(), CSVSearchTool(), TXTSearchTool()])
+            except Exception as e:
+                print(f"Warning: Could not initialize task search tools due to embedding dependency: {str(e)}")
+                print("Task will use basic file reading tools only.")
+        
         return Task(
             config=self.tasks_config['upload_and_read_documents'],
-            tools=[FileReadTool(), PDFSearchTool(), CSVSearchTool(), TXTSearchTool()],
+            tools=basic_tools,
         )
 
     @task

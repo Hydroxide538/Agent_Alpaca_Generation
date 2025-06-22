@@ -27,7 +27,7 @@ class WorkflowConfig(BaseModel):
     embedding_model: str
     reranking_model: Optional[str] = None
     openai_api_key: Optional[str] = None
-    ollama_url: str = "http://localhost:11434"
+    ollama_url: str = "http://host.docker.internal:11434"
     enable_gpu_optimization: bool = True
     documents: List[DocumentInfo] = []
     workflow_type: WorkflowType = WorkflowType.FULL

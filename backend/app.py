@@ -18,10 +18,11 @@ import traceback
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
-from backend.models import WorkflowConfig, WorkflowStatus, TestResult
-from backend.llm_manager import LLMManager
-from backend.workflow_manager import WorkflowManager
-from backend.websocket_manager import WebSocketManager
+from models import WorkflowConfig, WorkflowStatus, TestResult
+from llm_manager import LLMManager
+from workflow_manager import WorkflowManager
+from websocket_manager import WebSocketManager
+from troubleshooting import TroubleshootingManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,12 +40,19 @@ app.add_middleware(
 )
 
 # Serve static files (frontend)
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+# Get the correct path to frontend directory relative to the project root
+import os
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_path = os.path.join(project_root, "frontend")
+troubleshooting_path = os.path.join(project_root, "troubleshooting")
+app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+app.mount("/troubleshooting", StaticFiles(directory=troubleshooting_path), name="troubleshooting")
 
 # Global managers
 llm_manager = LLMManager()
 workflow_manager = WorkflowManager()
 websocket_manager = WebSocketManager()
+troubleshooting_manager = TroubleshootingManager()
 
 # Storage directories
 UPLOAD_DIR = "uploads"
@@ -55,7 +63,8 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 @app.get("/")
 async def serve_frontend():
     """Serve the frontend HTML file"""
-    return FileResponse("frontend/index.html")
+    frontend_html_path = os.path.join(project_root, "frontend", "index.html")
+    return FileResponse(frontend_html_path)
 
 @app.get("/health")
 async def health_check():
@@ -228,10 +237,10 @@ async def websocket_endpoint(websocket: WebSocket):
         websocket_manager.disconnect(websocket)
 
 @app.get("/ollama-models")
-async def get_ollama_models():
+async def get_ollama_models(ollama_url: str = "http://localhost:11434"):
     """Get available Ollama models"""
     try:
-        models = await llm_manager.get_ollama_models()
+        models = await llm_manager.get_ollama_models(ollama_url)
         return {"models": models}
     except Exception as e:
         logger.error(f"Failed to get Ollama models: {str(e)}")
@@ -297,6 +306,77 @@ async def get_system_info():
     except Exception as e:
         logger.error(f"Failed to get system info: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get system info: {str(e)}")
+
+# Troubleshooting endpoints
+@app.post("/troubleshoot/api-health")
+async def troubleshoot_api_health():
+    """Run API health check tests"""
+    try:
+        results = await troubleshooting_manager.run_api_health_test(websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"API health test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"API health test failed: {str(e)}")
+
+@app.post("/troubleshoot/docker-ollama")
+async def troubleshoot_docker_ollama():
+    """Run Docker Ollama connection tests"""
+    try:
+        results = await troubleshooting_manager.run_docker_ollama_test(websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"Docker Ollama test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Docker Ollama test failed: {str(e)}")
+
+@app.post("/troubleshoot/model-debug")
+async def troubleshoot_model_debug(model_name: str = "bge-m3:latest"):
+    """Run detailed model debugging"""
+    try:
+        results = await troubleshooting_manager.run_model_debug_test(model_name, websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"Model debug test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Model debug test failed: {str(e)}")
+
+@app.post("/troubleshoot/workflow-model")
+async def troubleshoot_workflow_model(config: WorkflowConfig):
+    """Run workflow model tests"""
+    try:
+        results = await troubleshooting_manager.run_workflow_model_test(config, websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"Workflow model test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workflow model test failed: {str(e)}")
+
+@app.post("/troubleshoot/llm-debug")
+async def troubleshoot_llm_debug(config: WorkflowConfig):
+    """Run comprehensive LLM manager debugging"""
+    try:
+        results = await troubleshooting_manager.run_llm_manager_debug(config, websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"LLM debug test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"LLM debug test failed: {str(e)}")
+
+@app.post("/troubleshoot/crew-workflow")
+async def troubleshoot_crew_workflow(config: WorkflowConfig):
+    """Run CrewAI workflow execution tests"""
+    try:
+        results = await troubleshooting_manager.run_crew_workflow_test(config, websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"CrewAI workflow test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CrewAI workflow test failed: {str(e)}")
+
+@app.post("/troubleshoot/ollama-workflow")
+async def troubleshoot_ollama_workflow(config: WorkflowConfig):
+    """Run Ollama workflow configuration tests"""
+    try:
+        results = await troubleshooting_manager.run_ollama_workflow_test(config, websocket_manager)
+        return results
+    except Exception as e:
+        logger.error(f"Ollama workflow test failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ollama workflow test failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

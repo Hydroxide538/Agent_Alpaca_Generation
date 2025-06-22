@@ -9,3 +9,15 @@ crewai-tools>=0.12.0
 psutil==5.9.6
 GPUtil==1.4.0
 python-dotenv==1.0.0
+
+# Enhanced RAG and Alpaca generation dependencies
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+numpy>=1.24.0
+pandas>=2.0.0
+PyPDF2>=3.0.0
+
+# Optional dependencies for better performance
+faiss-cpu>=1.7.0
+transformers>=4.30.0
+torch>=2.0.0

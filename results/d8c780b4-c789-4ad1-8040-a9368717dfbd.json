@@ -1,0 +1,15 @@
+{
+  "id": "d8c780b4-c789-4ad1-8040-a9368717dfbd",
+  "title": "Synthetic Data Generation Results (Failed)",
+  "description": "Failed to generate synthetic data for 1 documents",
+  "type": "synthetic_data",
+  "data": {
+    "documents_processed": 1,
+    "model_used": "ollama:phi4-reasoning:latest",
+    "generation_timestamp": "2025-06-22T09:50:36.177559",
+    "error": "litellm.APIConnectionError: list index out of range\nTraceback (most recent call last):\n  File \"/home/pc10542/anaconda3/envs/unsloth_env/lib/python3.11/site-packages/litellm/main.py\", line 2928, in completion\n    response = base_llm_http_handler.completion(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pc10542/anaconda3/envs/unsloth_env/lib/python3.11/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 314, in completion\n    data = provider_config.transform_request(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pc10542/anaconda3/envs/unsloth_env/lib/python3.11/site-packages/litellm/llms/ollama/completion/transformation.py\", line 340, in transform_request\n    modified_prompt = ollama_pt(model=model, messages=messages)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pc10542/anaconda3/envs/unsloth_env/lib/python3.11/site-packages/litellm/litellm_core_utils/prompt_templates/factory.py\", line 234, in ollama_pt\n    tool_calls = messages[msg_i].get(\"tool_calls\")\n                 ~~~~~~~~^^^^^^^\nIndexError: list index out of range\n",
+    "status": "failed"
+  },
+  "created_at": "2025-06-22T09:50:36.177563",
+  "workflow_id": "5b550580-8aaa-4925-870f-15a33d6d314c"
+}

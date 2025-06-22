@@ -11,8 +11,10 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
-from backend.models import WorkflowConfig, WorkflowStatus, WorkflowProgress, WorkflowResult
-from backend.llm_manager import LLMManager
+from models import WorkflowConfig, WorkflowStatus, WorkflowProgress, WorkflowResult
+from llm_manager import LLMManager
+from rag_system import RAGSystem
+from alpaca_generator import AlpacaFormatGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +132,7 @@ class WorkflowManager:
             raise
     
     async def _setup_models(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
-        """Setup and validate models"""
+        """Setup and validate models, then execute CrewAI workflow"""
         try:
             await websocket_manager.broadcast({
                 "type": "log",
@@ -156,126 +158,361 @@ class WorkflowManager:
                     })
                     raise Exception(f"Model setup failed: {result.message}")
             
-        except Exception as e:
-            logger.error(f"Model setup failed: {str(e)}")
-            raise
-    
-    async def _generate_synthetic_data(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
-        """Generate synthetic data using CrewAI"""
-        try:
-            await websocket_manager.broadcast({
-                "type": "log",
-                "level": "info",
-                "message": "Starting synthetic data generation..."
-            })
-            
-            # Create CrewAI crew instance
-            crew_instance = LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew()
-            
-            # Prepare inputs for the crew
-            inputs = {
-                "documents": [doc.path for doc in config.documents],
-                "data_generation_model": config.data_generation_model,
-                "embedding_model": config.embedding_model,
-                "reranking_model": config.reranking_model,
-                "enable_gpu_optimization": config.enable_gpu_optimization
-            }
-            
-            # Run the crew workflow
+            # Now execute the actual CrewAI workflow
             await websocket_manager.broadcast({
                 "type": "log",
                 "level": "info",
                 "message": "Executing CrewAI workflow..."
             })
             
-            # This would be the actual crew execution
-            # For now, we'll simulate it
-            await asyncio.sleep(2)  # Simulate processing time
-            
-            # Save synthetic data results
-            result_id = str(uuid.uuid4())
-            result_data = {
-                "id": result_id,
-                "title": "Synthetic Data Generation Results",
-                "description": f"Generated synthetic data for {len(config.documents)} documents",
-                "type": "synthetic_data",
-                "data": {
-                    "documents_processed": len(config.documents),
-                    "model_used": config.data_generation_model,
-                    "generation_timestamp": datetime.now().isoformat()
-                },
-                "created_at": datetime.now().isoformat(),
-                "workflow_id": workflow_id
+            # Create CrewAI configuration
+            crew_config = {
+                "data_generation_model": config.data_generation_model,
+                "embedding_model": config.embedding_model,
+                "reranking_model": config.reranking_model,
+                "openai_api_key": config.openai_api_key,
+                "ollama_url": config.ollama_url,
+                "enable_gpu_optimization": config.enable_gpu_optimization
             }
             
-            # Save result to file
-            result_path = os.path.join("results", f"{result_id}.json")
-            with open(result_path, 'w') as f:
-                json.dump(result_data, f, indent=2)
+            # Prepare inputs for CrewAI
+            inputs = {
+                "documents": [doc.path for doc in config.documents],
+                "workflow_type": config.workflow_type,
+                "data_generation_model": config.data_generation_model,
+                "embedding_model": config.embedding_model,
+                "reranking_model": config.reranking_model,
+                "enable_gpu_optimization": config.enable_gpu_optimization
+            }
+            
+            # Execute CrewAI workflow in a thread to avoid blocking
+            import concurrent.futures
+            loop = asyncio.get_event_loop()
+            
+            def run_crew_workflow():
+                try:
+                    crew_instance = LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew(config=crew_config)
+                    result = crew_instance.crew().kickoff(inputs=inputs)
+                    return {"success": True, "result": result}
+                except Exception as e:
+                    return {"success": False, "error": str(e)}
+            
+            # Run CrewAI workflow in thread executor
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                crew_result = await loop.run_in_executor(executor, run_crew_workflow)
+            
+            if crew_result["success"]:
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": "CrewAI workflow completed successfully"
+                })
+                
+                # Save CrewAI result
+                result_id = str(uuid.uuid4())
+                result_data = {
+                    "id": result_id,
+                    "title": "CrewAI Workflow Results",
+                    "description": f"CrewAI workflow execution results for {len(config.documents)} documents",
+                    "type": "crewai_workflow",
+                    "data": {
+                        "crew_result": str(crew_result["result"]),
+                        "workflow_config": crew_config,
+                        "inputs": inputs,
+                        "execution_timestamp": datetime.now().isoformat()
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "workflow_id": workflow_id
+                }
+                
+                result_path = os.path.join("results", f"{result_id}.json")
+                with open(result_path, 'w', encoding='utf-8') as f:
+                    json.dump(result_data, f, indent=2, ensure_ascii=False)
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": f"CrewAI results saved: {result_id}"
+                })
+            else:
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "error",
+                    "message": f"CrewAI workflow failed: {crew_result['error']}"
+                })
+                raise Exception(f"CrewAI workflow failed: {crew_result['error']}")
+            
+        except Exception as e:
+            logger.error(f"Model setup and CrewAI execution failed: {str(e)}")
+            raise
+    
+    async def _generate_synthetic_data(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
+        """Generate synthetic data in Alpaca format using enhanced RAG and LLM"""
+        try:
+            await websocket_manager.broadcast({
+                "type": "log",
+                "level": "info",
+                "message": "Starting Alpaca format synthetic data generation..."
+            })
+            
+            # Initialize RAG system
+            await websocket_manager.broadcast({
+                "type": "log",
+                "level": "info",
+                "message": "Initializing RAG system..."
+            })
+            
+            rag_system = RAGSystem(
+                embedding_model=config.embedding_model,
+                reranking_model=config.reranking_model,
+                ollama_url=config.ollama_url
+            )
+            
+            # Initialize Alpaca generator
+            alpaca_generator = AlpacaFormatGenerator(self.llm_manager, rag_system)
+            
+            # Convert WorkflowConfig to dict for compatibility
+            config_dict = {
+                "data_generation_model": config.data_generation_model,
+                "embedding_model": config.embedding_model,
+                "reranking_model": config.reranking_model,
+                "openai_api_key": config.openai_api_key,
+                "ollama_url": config.ollama_url,
+                "enable_gpu_optimization": config.enable_gpu_optimization
+            }
+            
+            # Get document paths
+            document_paths = [doc.path for doc in config.documents]
             
             await websocket_manager.broadcast({
                 "type": "log",
-                "level": "success",
-                "message": f"Synthetic data generation completed. Result saved: {result_id}"
+                "level": "info",
+                "message": f"Processing {len(document_paths)} documents for Alpaca dataset generation..."
             })
+            
+            # Generate Alpaca format dataset
+            try:
+                alpaca_results = await alpaca_generator.generate_alpaca_dataset(
+                    document_paths, config_dict, websocket_manager
+                )
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": f"Successfully generated {len(alpaca_results['alpaca_data'])} Alpaca training examples"
+                })
+                
+                # Save Alpaca dataset
+                result_id = str(uuid.uuid4())
+                result_path = os.path.join("results", f"{result_id}.json")
+                
+                # Create comprehensive result data
+                result_data = {
+                    "id": result_id,
+                    "title": "Alpaca Format Training Dataset",
+                    "description": f"Generated {len(alpaca_results['alpaca_data'])} Alpaca format training examples from {len(config.documents)} documents",
+                    "type": "alpaca_dataset",
+                    "data": {
+                        "alpaca_training_data": alpaca_results['alpaca_data'],
+                        "statistics": alpaca_results['statistics'],
+                        "metadata": alpaca_results['metadata'],
+                        "rag_stats": rag_system.get_stats()
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "workflow_id": workflow_id
+                }
+                
+                # Save to file
+                with open(result_path, 'w', encoding='utf-8') as f:
+                    json.dump(result_data, f, indent=2, ensure_ascii=False)
+                
+                # Also save just the Alpaca data in standard format
+                alpaca_only_path = os.path.join("results", f"{result_id}_alpaca_only.json")
+                alpaca_generator.save_alpaca_dataset(alpaca_results['alpaca_data'], alpaca_only_path)
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": f"Alpaca dataset saved: {result_id} (Full: {result_path}, Alpaca-only: {alpaca_only_path})"
+                })
+                
+            except Exception as generation_error:
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "error",
+                    "message": f"Alpaca generation failed: {str(generation_error)}"
+                })
+                
+                # Save error result
+                result_id = str(uuid.uuid4())
+                result_data = {
+                    "id": result_id,
+                    "title": "Alpaca Dataset Generation (Failed)",
+                    "description": f"Failed to generate Alpaca dataset from {len(config.documents)} documents",
+                    "type": "alpaca_dataset",
+                    "data": {
+                        "documents_processed": len(config.documents),
+                        "model_used": config.data_generation_model,
+                        "generation_timestamp": datetime.now().isoformat(),
+                        "error": str(generation_error),
+                        "status": "failed"
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "workflow_id": workflow_id
+                }
+                
+                result_path = os.path.join("results", f"{result_id}.json")
+                with open(result_path, 'w') as f:
+                    json.dump(result_data, f, indent=2)
+                
+                logger.error(f"Alpaca generation failed but continuing workflow: {str(generation_error)}")
             
         except Exception as e:
             logger.error(f"Synthetic data generation failed: {str(e)}")
             raise
     
     async def _implement_rag(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
-        """Implement RAG capabilities"""
+        """Implement RAG capabilities with proper embedding and retrieval"""
         try:
             await websocket_manager.broadcast({
                 "type": "log",
                 "level": "info",
-                "message": "Implementing RAG capabilities..."
+                "message": "Implementing enhanced RAG capabilities..."
             })
             
-            # Simulate RAG implementation
+            # Initialize RAG system
+            rag_system = RAGSystem(
+                embedding_model=config.embedding_model,
+                reranking_model=config.reranking_model,
+                ollama_url=config.ollama_url
+            )
+            
+            # Get document paths
+            document_paths = [doc.path for doc in config.documents]
+            
             await websocket_manager.broadcast({
                 "type": "log",
                 "level": "info",
-                "message": f"Creating embeddings using {config.embedding_model}..."
+                "message": f"Processing {len(document_paths)} documents for RAG implementation..."
             })
             
-            await asyncio.sleep(1.5)  # Simulate embedding creation
-            
-            if config.reranking_model:
+            # Process documents and create embeddings
+            try:
+                rag_results = await rag_system.process_documents(document_paths, websocket_manager)
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": f"RAG processing completed: {rag_results['total_chunks']} chunks created"
+                })
+                
+                # Test retrieval functionality
                 await websocket_manager.broadcast({
                     "type": "log",
                     "level": "info",
-                    "message": f"Setting up reranking with {config.reranking_model}..."
+                    "message": "Testing RAG retrieval functionality..."
                 })
-                await asyncio.sleep(1)  # Simulate reranking setup
-            
-            # Save RAG results
-            result_id = str(uuid.uuid4())
-            result_data = {
-                "id": result_id,
-                "title": "RAG Implementation Results",
-                "description": f"RAG implementation for {len(config.documents)} documents",
-                "type": "rag_implementation",
-                "data": {
-                    "documents_processed": len(config.documents),
-                    "embedding_model": config.embedding_model,
-                    "reranking_model": config.reranking_model,
-                    "implementation_timestamp": datetime.now().isoformat()
-                },
-                "created_at": datetime.now().isoformat(),
-                "workflow_id": workflow_id
-            }
-            
-            # Save result to file
-            result_path = os.path.join("results", f"{result_id}.json")
-            with open(result_path, 'w') as f:
-                json.dump(result_data, f, indent=2)
-            
-            await websocket_manager.broadcast({
-                "type": "log",
-                "level": "success",
-                "message": f"RAG implementation completed. Result saved: {result_id}"
-            })
+                
+                test_queries = [
+                    "What are the main topics discussed?",
+                    "What information is provided in the documents?",
+                    "What are the key points mentioned?"
+                ]
+                
+                retrieval_tests = []
+                for query in test_queries:
+                    try:
+                        relevant_chunks = await rag_system.retrieve_relevant_chunks(query, top_k=3)
+                        
+                        # Apply reranking if available
+                        if config.reranking_model and relevant_chunks:
+                            relevant_chunks = await rag_system.rerank_results(query, relevant_chunks)
+                        
+                        retrieval_tests.append({
+                            "query": query,
+                            "retrieved_chunks": len(relevant_chunks),
+                            "success": len(relevant_chunks) > 0
+                        })
+                        
+                    except Exception as e:
+                        retrieval_tests.append({
+                            "query": query,
+                            "retrieved_chunks": 0,
+                            "success": False,
+                            "error": str(e)
+                        })
+                
+                successful_tests = sum(1 for test in retrieval_tests if test["success"])
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success" if successful_tests > 0 else "warning",
+                    "message": f"RAG retrieval tests: {successful_tests}/{len(test_queries)} successful"
+                })
+                
+                # Save comprehensive RAG results
+                result_id = str(uuid.uuid4())
+                result_data = {
+                    "id": result_id,
+                    "title": "Enhanced RAG Implementation Results",
+                    "description": f"RAG implementation with embeddings and retrieval for {len(config.documents)} documents",
+                    "type": "rag_implementation",
+                    "data": {
+                        "processing_results": rag_results,
+                        "retrieval_tests": retrieval_tests,
+                        "rag_statistics": rag_system.get_stats(),
+                        "implementation_timestamp": datetime.now().isoformat(),
+                        "models_used": {
+                            "embedding_model": config.embedding_model,
+                            "reranking_model": config.reranking_model
+                        }
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "workflow_id": workflow_id
+                }
+                
+                # Save result to file
+                result_path = os.path.join("results", f"{result_id}.json")
+                with open(result_path, 'w', encoding='utf-8') as f:
+                    json.dump(result_data, f, indent=2, ensure_ascii=False)
+                
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "success",
+                    "message": f"Enhanced RAG implementation completed. Result saved: {result_id}"
+                })
+                
+            except Exception as rag_error:
+                await websocket_manager.broadcast({
+                    "type": "log",
+                    "level": "error",
+                    "message": f"RAG implementation failed: {str(rag_error)}"
+                })
+                
+                # Save error result
+                result_id = str(uuid.uuid4())
+                result_data = {
+                    "id": result_id,
+                    "title": "RAG Implementation (Failed)",
+                    "description": f"Failed RAG implementation for {len(config.documents)} documents",
+                    "type": "rag_implementation",
+                    "data": {
+                        "documents_processed": len(config.documents),
+                        "embedding_model": config.embedding_model,
+                        "reranking_model": config.reranking_model,
+                        "implementation_timestamp": datetime.now().isoformat(),
+                        "error": str(rag_error),
+                        "status": "failed"
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "workflow_id": workflow_id
+                }
+                
+                result_path = os.path.join("results", f"{result_id}.json")
+                with open(result_path, 'w') as f:
+                    json.dump(result_data, f, indent=2)
+                
+                logger.error(f"RAG implementation failed but continuing workflow: {str(rag_error)}")
             
         except Exception as e:
             logger.error(f"RAG implementation failed: {str(e)}")

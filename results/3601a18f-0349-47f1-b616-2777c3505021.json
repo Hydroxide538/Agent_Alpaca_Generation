@@ -1,0 +1,15 @@
+{
+  "id": "3601a18f-0349-47f1-b616-2777c3505021",
+  "title": "Synthetic Data Generation Results (Failed)",
+  "description": "Failed to generate synthetic data for 1 documents",
+  "type": "synthetic_data",
+  "data": {
+    "documents_processed": 1,
+    "model_used": "ollama:mistral-small3.2:latest",
+    "generation_timestamp": "2025-06-22T06:17:24.629856",
+    "error": "litellm.APIConnectionError: OllamaException - {\"error\":\"\\\"snowflake-arctic-embed2:latest\\\" does not support generate\"}",
+    "status": "failed"
+  },
+  "created_at": "2025-06-22T06:17:24.629859",
+  "workflow_id": "3001683e-f23e-4b97-8a61-b239ce633cda"
+}

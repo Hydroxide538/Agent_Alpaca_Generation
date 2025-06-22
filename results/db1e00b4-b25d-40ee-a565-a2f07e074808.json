@@ -1,0 +1,14 @@
+{
+  "id": "db1e00b4-b25d-40ee-a565-a2f07e074808",
+  "title": "RAG Implementation Results",
+  "description": "RAG implementation for 1 documents",
+  "type": "rag_implementation",
+  "data": {
+    "documents_processed": 1,
+    "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+    "reranking_model": "ollama:bge-m3:latest",
+    "implementation_timestamp": "2025-06-22T06:04:40.830553"
+  },
+  "created_at": "2025-06-22T06:04:40.830568",
+  "workflow_id": "485aff86-be57-4c93-ad84-7b5d6a7b58fe"
+}
