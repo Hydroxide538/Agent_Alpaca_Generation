@@ -27,6 +27,8 @@ class WorkflowManager {
         
         // Utility events
         document.getElementById('clearLogsBtn').addEventListener('click', () => this.clearLogs());
+        document.getElementById('refreshResultsBtn').addEventListener('click', () => this.loadResultsFromBackend());
+        document.getElementById('clearResultsBtn').addEventListener('click', () => this.clearResults());
         
         // Model refresh events
         document.getElementById('refreshModelsBtn').addEventListener('click', () => this.refreshOllamaModels());
@@ -566,8 +568,12 @@ class WorkflowManager {
     handleWorkflowComplete(data) {
         this.setWorkflowRunning(false);
         this.logMessage('Workflow completed successfully!', 'success');
-        this.displayResults(data.results);
         this.showAlert('Workflow completed successfully!', 'success');
+        
+        // Automatically refresh results to show new files
+        setTimeout(() => {
+            this.loadResultsFromBackend();
+        }, 1000);
     }
 
     handleWorkflowError(data) {
@@ -750,6 +756,45 @@ class WorkflowManager {
             }
         } catch (error) {
             this.showAlert(`Failed to view result: ${error.message}`, 'error');
+        }
+    }
+
+    async clearResults() {
+        // Show confirmation dialog
+        if (!confirm('Are you sure you want to clear all results? This action cannot be undone.')) {
+            return;
+        }
+
+        const clearBtn = document.getElementById('clearResultsBtn');
+        const originalText = clearBtn.innerHTML;
+        
+        try {
+            // Show loading state
+            clearBtn.disabled = true;
+            clearBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Clearing...';
+            
+            const response = await fetch(`${this.apiBaseUrl}/clear-results`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.logMessage(`Cleared ${result.deleted_count} result files`, 'success');
+                this.showAlert(`Successfully cleared ${result.deleted_count} result files`, 'success');
+                
+                // Refresh the results display
+                this.loadResultsFromBackend();
+            } else {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to clear results');
+            }
+        } catch (error) {
+            this.logMessage(`Failed to clear results: ${error.message}`, 'error');
+            this.showAlert(`Failed to clear results: ${error.message}`, 'error');
+        } finally {
+            // Reset button state
+            clearBtn.disabled = false;
+            clearBtn.innerHTML = originalText;
         }
     }
 

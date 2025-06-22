@@ -11,10 +11,10 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
-from models import WorkflowConfig, WorkflowStatus, WorkflowProgress, WorkflowResult
-from llm_manager import LLMManager
-from rag_system import RAGSystem
-from alpaca_generator import AlpacaFormatGenerator
+from backend.models import WorkflowConfig, WorkflowStatus, WorkflowProgress, WorkflowResult
+from backend.llm_manager import LLMManager
+from backend.rag_system import RAGSystem
+from backend.alpaca_generator import AlpacaFormatGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +225,11 @@ class WorkflowManager:
                     "workflow_id": workflow_id
                 }
                 
-                result_path = os.path.join("results", f"{result_id}.json")
+                # Ensure backend results directory exists
+                backend_results_dir = os.path.join(os.path.dirname(__file__), "results")
+                os.makedirs(backend_results_dir, exist_ok=True)
+                
+                result_path = os.path.join(backend_results_dir, f"{result_id}.json")
                 with open(result_path, 'w', encoding='utf-8') as f:
                     json.dump(result_data, f, indent=2, ensure_ascii=False)
                 
@@ -322,12 +326,18 @@ class WorkflowManager:
                     "workflow_id": workflow_id
                 }
                 
+                # Ensure backend results directory exists
+                backend_results_dir = os.path.join(os.path.dirname(__file__), "results")
+                os.makedirs(backend_results_dir, exist_ok=True)
+                
+                result_path = os.path.join(backend_results_dir, f"{result_id}.json")
+                
                 # Save to file
                 with open(result_path, 'w', encoding='utf-8') as f:
                     json.dump(result_data, f, indent=2, ensure_ascii=False)
                 
                 # Also save just the Alpaca data in standard format
-                alpaca_only_path = os.path.join("results", f"{result_id}_alpaca_only.json")
+                alpaca_only_path = os.path.join(backend_results_dir, f"{result_id}_alpaca_only.json")
                 alpaca_generator.save_alpaca_dataset(alpaca_results['alpaca_data'], alpaca_only_path)
                 
                 await websocket_manager.broadcast({
@@ -361,7 +371,11 @@ class WorkflowManager:
                     "workflow_id": workflow_id
                 }
                 
-                result_path = os.path.join("results", f"{result_id}.json")
+                # Ensure backend results directory exists
+                backend_results_dir = os.path.join(os.path.dirname(__file__), "results")
+                os.makedirs(backend_results_dir, exist_ok=True)
+                
+                result_path = os.path.join(backend_results_dir, f"{result_id}.json")
                 with open(result_path, 'w') as f:
                     json.dump(result_data, f, indent=2)
                 
@@ -471,8 +485,12 @@ class WorkflowManager:
                     "workflow_id": workflow_id
                 }
                 
+                # Ensure backend results directory exists
+                backend_results_dir = os.path.join(os.path.dirname(__file__), "results")
+                os.makedirs(backend_results_dir, exist_ok=True)
+                
                 # Save result to file
-                result_path = os.path.join("results", f"{result_id}.json")
+                result_path = os.path.join(backend_results_dir, f"{result_id}.json")
                 with open(result_path, 'w', encoding='utf-8') as f:
                     json.dump(result_data, f, indent=2, ensure_ascii=False)
                 
@@ -508,7 +526,11 @@ class WorkflowManager:
                     "workflow_id": workflow_id
                 }
                 
-                result_path = os.path.join("results", f"{result_id}.json")
+                # Ensure backend results directory exists
+                backend_results_dir = os.path.join(os.path.dirname(__file__), "results")
+                os.makedirs(backend_results_dir, exist_ok=True)
+                
+                result_path = os.path.join(backend_results_dir, f"{result_id}.json")
                 with open(result_path, 'w') as f:
                     json.dump(result_data, f, indent=2)
                 

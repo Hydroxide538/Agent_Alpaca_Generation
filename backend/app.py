@@ -18,11 +18,11 @@ import traceback
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
-from models import WorkflowConfig, WorkflowStatus, TestResult
-from llm_manager import LLMManager
-from workflow_manager import WorkflowManager
-from websocket_manager import WebSocketManager
-from troubleshooting import TroubleshootingManager
+from backend.models import WorkflowConfig, WorkflowStatus, TestResult
+from backend.llm_manager import LLMManager
+from backend.workflow_manager import WorkflowManager
+from backend.websocket_manager import WebSocketManager
+from backend.troubleshooting import TroubleshootingManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -56,7 +56,7 @@ troubleshooting_manager = TroubleshootingManager()
 
 # Storage directories
 UPLOAD_DIR = "uploads"
-RESULTS_DIR = "results"
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -209,18 +209,42 @@ async def list_results():
                 with open(result_path, 'r') as f:
                     result_data = json.load(f)
                 
+                # Get file size
+                file_size = os.path.getsize(result_path)
+                
                 results.append({
                     "id": result_id,
                     "title": result_data.get("title", f"Result {result_id}"),
                     "description": result_data.get("description", "Workflow result"),
                     "created_at": result_data.get("created_at"),
-                    "type": result_data.get("type", "unknown")
+                    "type": result_data.get("type", "unknown"),
+                    "file_size": file_size
                 })
+        
+        # Sort by creation date (newest first)
+        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         
         return {"results": results}
     except Exception as e:
         logger.error(f"Failed to list results: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list results: {str(e)}")
+
+@app.delete("/clear-results")
+async def clear_results():
+    """Clear all results"""
+    try:
+        deleted_count = 0
+        for filename in os.listdir(RESULTS_DIR):
+            if filename.endswith('.json'):
+                file_path = os.path.join(RESULTS_DIR, filename)
+                os.remove(file_path)
+                deleted_count += 1
+        
+        logger.info(f"Cleared {deleted_count} result files")
+        return {"status": "success", "deleted_count": deleted_count, "message": f"Cleared {deleted_count} result files"}
+    except Exception as e:
+        logger.error(f"Failed to clear results: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear results: {str(e)}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

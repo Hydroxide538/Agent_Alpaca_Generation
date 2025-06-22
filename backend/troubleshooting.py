@@ -12,8 +12,8 @@ from datetime import datetime
 # Add the backend directory to Python path
 sys.path.append(os.path.dirname(__file__))
 
-from models import WorkflowConfig, TestResult, DocumentInfo
-from llm_manager import LLMManager
+from backend.models import WorkflowConfig, TestResult, DocumentInfo
+from backend.llm_manager import LLMManager
 
 class TroubleshootingManager:
     """Manager for running diagnostic tests"""

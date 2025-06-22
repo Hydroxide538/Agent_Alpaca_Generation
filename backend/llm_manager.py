@@ -4,7 +4,7 @@ import time
 import logging
 from typing import Dict, List, Optional, Any
 import openai
-from models import WorkflowConfig, TestResult
+from backend.models import WorkflowConfig, TestResult
 
 logger = logging.getLogger(__name__)
 
