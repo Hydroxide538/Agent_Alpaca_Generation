@@ -1,9 +1,9 @@
-"""
-CrewAI Workflow Manager Backend
+# Backend module initialization
+# Make safe_llm_wrapper available for imports
 
-A FastAPI-based backend for managing CrewAI workflows with support for
-synthetic data generation and RAG implementation.
-"""
-
-__version__ = "1.0.0"
-__author__ = "CrewAI Workflow Manager Team"
+try:
+    from .safe_llm_wrapper import SafeLLMFactory, CrewAICompatibleLLM, SafeOllamaLLM
+    __all__ = ['SafeLLMFactory', 'CrewAICompatibleLLM', 'SafeOllamaLLM']
+except ImportError:
+    # If import fails, define empty list
+    __all__ = []
