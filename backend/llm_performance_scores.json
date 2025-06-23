@@ -1,11 +1,57 @@
 {
   "ollama:gemma3:27b": {
-    "fact_extraction": 0.0,
-    "concept_extraction": 0.0,
+    "fact_extraction": 0.4,
+    "concept_extraction": 0.88,
     "analytical_qa": 0.0
   },
   "ollama:qwen3:32b": {
     "fact_extraction": 0.0,
-    "concept_extraction": 0.0
+    "concept_extraction": 0.0,
+    "analytical_qa": 0.0
+  },
+  "ollama:reflection:latest": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.05,
+    "analytical_qa": 0.0
+  },
+  "ollama:llama3.2:3b": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.25,
+    "analytical_qa": 0.0
+  },
+  "ollama:magistral:latest": {
+    "fact_extraction": 0.3,
+    "concept_extraction": 0.6,
+    "analytical_qa": 0.0
+  },
+  "ollama:phi4-reasoning:latest": {
+    "fact_extraction": 0.8,
+    "concept_extraction": 0.65,
+    "analytical_qa": 0.0
+  },
+  "ollama:llama3.3:latest": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.93,
+    "analytical_qa": 0.0
+  },
+  "ollama:deepseek-r1:70b": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.0,
+    "analytical_qa": 0.0
+  },
+  "ollama:devstral:latest": {
+    "fact_extraction": 0.35,
+    "concept_extraction": 0.93,
+    "analytical_qa": 0.0
+  },
+  "ollama:mistral-small3.2:latest": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.93,
+    "analytical_qa": 0.85
+  },
+  "ollama:llama4:latest": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.75,
+    "analytical_qa": 0.0
   }
 }

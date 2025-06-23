@@ -6,6 +6,7 @@ from datetime import datetime
 import re
 import random
 from dataclasses import dataclass
+from backend.json_parser_fix import RobustJSONParser
 
 logger = logging.getLogger(__name__)
 
@@ -253,61 +254,61 @@ class ImprovedAlpacaGenerator:
             facts = []
             
             for i, chunk in enumerate(chunks[:5]):  # Process first 5 chunks
-                fact_extraction_prompt = f"""
-                Analyze this document section and extract specific, verifiable facts. Focus on:
-                - Concrete data points, statistics, and measurements
-                - Specific claims and findings
-                - Procedural steps and methods
-                - Causal relationships
-                - Definitions of technical terms
-                
-                For each fact, provide:
-                1. The exact factual statement
-                2. The immediate context where it appears
-                3. What type of fact it is (numerical, procedural, causal, definitional)
-                
-                Document section:
-                {chunk}
-                
-                Please extract facts in JSON format, adhering to the following schema. Ensure all facts are included and are highly specific.
-                
-                JSON Schema for Facts:
-                [
-                    {{
-                        "content": "The exact factual statement.",
-                        "context": "The immediate context where it appears.",
-                        "fact_type": "numerical/procedural/causal/definitional/categorical/general",
-                        "confidence": "high/medium/low"
-                    }},
-                    // ... more facts
-                ]
-                
-                Example:
-                [
-                    {{
-                        "content": "The Earth's circumference at the equator is approximately 40,075 kilometers.",
-                        "context": "The document states, 'The Earth's circumference at the equator is approximately 40,075 kilometers, a key measurement in geodesy.'",
-                        "fact_type": "numerical",
-                        "confidence": "high"
-                    }},
-                    {{
-                        "content": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll.",
-                        "context": "In biology, photosynthesis is defined as the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll.",
-                        "fact_type": "definitional",
-                        "confidence": "high"
-                    }}
-                ]
-                """
+                fact_extraction_prompt = f"""You are a fact extraction system. Your task is to extract facts from the given text and return them in valid JSON format.
+
+CRITICAL INSTRUCTIONS:
+1. You MUST respond with ONLY a valid JSON array
+2. Do NOT include any text before or after the JSON
+3. Do NOT include explanations, comments, or markdown
+4. Start your response with [ and end with ]
+
+Extract 3-5 specific, verifiable facts from this document section:
+
+{chunk}
+
+Return a JSON array with this exact structure:
+[
+  {{
+    "content": "exact factual statement",
+    "context": "surrounding context",
+    "fact_type": "numerical",
+    "confidence": "high"
+  }}
+]
+
+Valid fact_type values: numerical, procedural, causal, definitional, categorical, general
+Valid confidence values: high, medium, low
+
+JSON OUTPUT ONLY:"""
                 
                 model_spec = config.get("data_generation_model", "")
                 response = await self.llm_manager.generate_response(model_spec, fact_extraction_prompt, config)
                 
                 try:
-                    chunk_facts_data = json.loads(response)
-                    chunk_facts = [ExtractedFact(**f) for f in chunk_facts_data]
-                except json.JSONDecodeError as e:
+                    # Use robust JSON parser
+                    chunk_facts_data = RobustJSONParser.extract_json_from_response(response)
+                    if chunk_facts_data and RobustJSONParser.validate_extracted_facts(chunk_facts_data):
+                        chunk_facts = []
+                        for f in chunk_facts_data:
+                            # Convert confidence string to float if needed
+                            confidence = f.get('confidence', 'medium')
+                            if isinstance(confidence, str):
+                                confidence = {'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(confidence.lower(), 0.5)
+                            
+                            fact = ExtractedFact(
+                                content=f.get('content', ''),
+                                context=f.get('context', ''),
+                                confidence=confidence,
+                                source_location=f"{doc_path}:chunk_{i}",
+                                fact_type=f.get('fact_type', 'general')
+                            )
+                            chunk_facts.append(fact)
+                    else:
+                        logger.error(f"Failed to extract or validate JSON facts from LLM response. Response: {response[:500]}")
+                        chunk_facts = []
+                except Exception as e:
                     logger.error(f"Failed to parse JSON facts from LLM response: {e}. Response: {response[:500]}")
-                    chunk_facts = [] # Fallback to empty list if JSON parsing fails
+                    chunk_facts = []
                 
                 facts.extend(chunk_facts)
             
@@ -329,57 +330,63 @@ class ImprovedAlpacaGenerator:
             concepts = []
             
             for i, chunk in enumerate(chunks):  # Process all chunks, no hard limit
-                concept_extraction_prompt = f"""
-                Analyze this document section and identify all key concepts, theories, methods, and important terms.
-                
-                Please extract concepts in JSON format, adhering to the following schema. Ensure all relevant concepts are included.
-                
-                JSON Schema for Concepts:
-                [
-                    {{
-                        "name": "Specific concept name.",
-                        "definition": "A clear, concise definition.",
-                        "examples": ["Concrete example 1", "Concrete example 2"],
-                        "relationships": ["How it relates to other concepts in the text"],
-                        "domain": "Field/domain it belongs to",
-                        "confidence": "high/medium/low"
-                    }},
-                    // ... more concepts
-                ]
-                
-                Example:
-                [
-                    {{
-                        "name": "Quantum Entanglement",
-                        "definition": "A phenomenon where two or more particles become linked in such a way that they share the same fate, regardless of distance.",
-                        "examples": ["Bell test experiments", "Quantum cryptography"],
-                        "relationships": ["Related to quantum mechanics", "Contrasts with classical physics"],
-                        "domain": "Physics",
-                        "confidence": "high"
-                    }},
-                    {{
-                        "name": "Supply Chain Management",
-                        "definition": "The oversight of materials, information, and finances as they move in a process from supplier to manufacturer to wholesaler to retailer to consumer.",
-                        "examples": ["Just-in-time inventory", "Logistics optimization"],
-                        "relationships": ["Interacts with operations management", "Impacts business strategy"],
-                        "domain": "Business",
-                        "confidence": "high"
-                    }}
-                ]
-                
-                Document section:
-                {chunk}
-                """
+                concept_extraction_prompt = f"""You are a concept extraction system. Your task is to extract key concepts from the given text and return them in valid JSON format.
+
+CRITICAL INSTRUCTIONS:
+1. You MUST respond with ONLY a valid JSON array
+2. Do NOT include any text before or after the JSON
+3. Do NOT include explanations, comments, or markdown
+4. Start your response with [ and end with ]
+
+Extract 2-4 key concepts from this document section:
+
+{chunk}
+
+Return a JSON array with this exact structure:
+[
+  {{
+    "name": "concept name",
+    "definition": "clear definition",
+    "examples": ["example1", "example2"],
+    "relationships": ["relationship1"],
+    "domain": "field name",
+    "confidence": "high"
+  }}
+]
+
+Valid confidence values: high, medium, low
+
+JSON OUTPUT ONLY:"""
                 
                 model_spec = config.get("data_generation_model", "")
                 response = await self.llm_manager.generate_response(model_spec, concept_extraction_prompt, config)
                 
                 try:
-                    chunk_concepts_data = json.loads(response)
-                    chunk_concepts = [ExtractedConcept(**c) for c in chunk_concepts_data]
-                except json.JSONDecodeError as e:
+                    # Use robust JSON parser
+                    chunk_concepts_data = RobustJSONParser.extract_json_from_response(response)
+                    if chunk_concepts_data and RobustJSONParser.validate_extracted_concepts(chunk_concepts_data):
+                        chunk_concepts = []
+                        for c in chunk_concepts_data:
+                            # Convert confidence string to float if needed
+                            confidence = c.get('confidence', 'medium')
+                            if isinstance(confidence, str):
+                                confidence = {'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(confidence.lower(), 0.5)
+                            
+                            concept = ExtractedConcept(
+                                name=c.get('name', ''),
+                                definition=c.get('definition', ''),
+                                examples=c.get('examples', []),
+                                relationships=c.get('relationships', []),
+                                domain=c.get('domain', 'general'),
+                                confidence=confidence
+                            )
+                            chunk_concepts.append(concept)
+                    else:
+                        logger.error(f"Failed to extract or validate JSON concepts from LLM response. Response: {response[:500]}")
+                        chunk_concepts = []
+                except Exception as e:
                     logger.error(f"Failed to parse JSON concepts from LLM response: {e}. Response: {response[:500]}")
-                    chunk_concepts = [] # Fallback to empty list if JSON parsing fails
+                    chunk_concepts = []
                 
                 concepts.extend(chunk_concepts)
             
@@ -456,7 +463,90 @@ class ImprovedAlpacaGenerator:
         except json.JSONDecodeError:
             return None
 
-    def _parse_structured_facts(self, response: str, doc_path: str, location: str) -> List[ExtractedFact]:
+    def _clean_json_response(self, response: str) -> str:
+        """
+        Cleans the LLM response to isolate the JSON content.
+        Removes markdown code blocks, conversational text, and leading/trailing whitespace.
+        """
+        # Remove markdown code blocks (```json ... ```)
+        json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+        if json_match:
+            return json_match.group(1).strip()
+
+        # If no markdown block, try to find the first [ or { and the last ] or }
+        first_brace = response.find('{')
+        first_bracket = response.find('[')
+
+        start_index = -1
+        if first_brace != -1 and (first_bracket == -1 or first_brace < first_bracket):
+            start_index = first_brace
+        elif first_bracket != -1:
+            start_index = first_bracket
+
+        if start_index == -1:
+            return "" # No JSON start found
+
+        # Find the corresponding end brace/bracket
+        if response[start_index] == '{':
+            end_char = '}'
+        else:
+            end_char = ']'
+
+        # Find the last occurrence of the end character after the start_index
+        end_index = response.rfind(end_char, start_index)
+
+        if end_index == -1:
+            return "" # No JSON end found
+
+        # Extract the potential JSON string
+        json_candidate = response[start_index : end_index + 1]
+
+        # Attempt to parse to confirm it's valid JSON, if not, try to find nested JSON
+        try:
+            json.loads(json_candidate)
+            return json_candidate.strip()
+        except json.JSONDecodeError:
+            # If the direct extraction fails, it might be due to nested or multiple JSONs,
+            # or other text within. Re-attempt with a more aggressive regex for the outermost JSON.
+            # This regex looks for a string that starts with [ or { and ends with ] or }
+            # and contains valid JSON characters in between.
+            # It's designed to be non-greedy (.*?) to match the smallest possible valid JSON.
+            # However, for the outermost JSON, we want the *largest* valid JSON.
+            # Let's try to find the last possible closing brace/bracket.
+            
+            # This is a more robust way to find the outermost JSON structure
+            # It looks for a [ or { followed by any characters, then a matching ] or }
+            # and tries to be as greedy as possible to capture the full JSON.
+            
+            # For arrays:
+            array_match = re.search(r'\[\s*[\s\S]*?\s*\]', response)
+            # For objects:
+            object_match = re.search(r'\{\s*[\s\S]*?\s*\}', response)
+
+            best_match = None
+            if array_match and object_match:
+                # Choose the one that starts earliest and ends latest
+                if array_match.start() < object_match.start():
+                    best_match = array_match
+                else:
+                    best_match = object_match
+            elif array_match:
+                best_match = array_match
+            elif object_match:
+                best_match = object_match
+
+            if best_match:
+                try:
+                    json_content = best_match.group(0).strip()
+                    json.loads(json_content) # Validate it's actually JSON
+                    return json_content
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse JSON even with regex cleanup. Original response start: {response[:200]}")
+                    return "" # Still couldn't find valid JSON
+            else:
+                return "" # No JSON structure found at all
+
+    def _parse_structured_facts(self, response: str, doc_path: str, chunk_index: int) -> List[ExtractedFact]:
         """Parse structured fact extraction response (now expects JSON)"""
         facts = []
         try:
@@ -471,7 +561,7 @@ class ImprovedAlpacaGenerator:
                         content=item.get('content', ''),
                         context=item.get('context', ''),
                         confidence={'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(str(item.get('confidence', 'medium')).lower(), 0.5),
-                        source_location=f"{doc_path}:{location}",
+                        source_location=f"{doc_path}:chunk_{chunk_index}", # Use chunk_index for source_location
                         fact_type=item.get('fact_type', 'general')
                     )
                     facts.append(fact)
@@ -480,7 +570,7 @@ class ImprovedAlpacaGenerator:
         
         return facts
     
-    def _parse_structured_concepts(self, response: str, doc_path: str) -> List[ExtractedConcept]:
+    def _parse_structured_concepts(self, response: str, doc_path: str, chunk_index: int) -> List[ExtractedConcept]:
         """Parse structured concept extraction response (now expects JSON)"""
         concepts = []
         try:
@@ -509,8 +599,16 @@ class ImprovedAlpacaGenerator:
         """Generate high-quality factual Q&A pairs"""
         qa_pairs = []
         
-        # Select high-confidence facts
-        high_quality_facts = [f for f in facts if f.confidence >= 0.7]
+        # Select high-confidence facts (fix confidence comparison)
+        high_quality_facts = []
+        for f in facts:
+            try:
+                confidence = float(f.confidence) if isinstance(f.confidence, (int, float)) else 0.5
+                if confidence >= 0.7:
+                    high_quality_facts.append(f)
+            except (ValueError, TypeError):
+                # Skip facts with invalid confidence values
+                continue
         
         for fact in high_quality_facts:  # Removed hard limit
             try:
@@ -567,8 +665,16 @@ class ImprovedAlpacaGenerator:
         """Generate high-quality conceptual Q&A pairs"""
         qa_pairs = []
         
-        # Select high-confidence concepts
-        high_quality_concepts = [c for c in concepts if c.confidence >= 0.7]
+        # Select high-confidence concepts (fix confidence comparison)
+        high_quality_concepts = []
+        for c in concepts:
+            try:
+                confidence = float(c.confidence) if isinstance(c.confidence, (int, float)) else 0.5
+                if confidence >= 0.7:
+                    high_quality_concepts.append(c)
+            except (ValueError, TypeError):
+                # Skip concepts with invalid confidence values
+                continue
         
         for concept in high_quality_concepts: # Removed hard limit
             try:
@@ -618,7 +724,16 @@ class ImprovedAlpacaGenerator:
         """Generate analytical comparison Q&A pairs"""
         qa_pairs = []
         
-        high_quality_concepts = [c for c in concepts if c.confidence >= 0.7]
+        # Select high-confidence concepts (fix confidence comparison)
+        high_quality_concepts = []
+        for c in concepts:
+            try:
+                confidence = float(c.confidence) if isinstance(c.confidence, (int, float)) else 0.5
+                if confidence >= 0.7:
+                    high_quality_concepts.append(c)
+            except (ValueError, TypeError):
+                # Skip concepts with invalid confidence values
+                continue
         
         # Generate comparison questions between related concepts
         for i in range(len(high_quality_concepts)): # Removed hard limit

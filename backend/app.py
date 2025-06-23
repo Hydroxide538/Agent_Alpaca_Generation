@@ -23,6 +23,7 @@ from backend.llm_manager import LLMManager
 from backend.workflow_manager import WorkflowManager
 from backend.websocket_manager import WebSocketManager
 from backend.troubleshooting import TroubleshootingManager
+from backend.token_counter import TokenCounter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,7 @@ async def upload_documents(files: List[UploadFile] = File(...)):
     """Upload documents for processing"""
     try:
         uploaded_files = []
+        token_counter = TokenCounter()
         
         for file in files:
             # Validate file type
@@ -95,17 +97,37 @@ async def upload_documents(files: List[UploadFile] = File(...)):
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             
+            # Count tokens in the uploaded file
+            token_stats = token_counter.count_tokens_in_file(file_path)
+            
             uploaded_files.append({
                 "id": file_id,
                 "original_name": file.filename,
                 "filename": unique_filename,
                 "path": file_path,
                 "size": os.path.getsize(file_path),
-                "type": file_extension[1:].upper()
+                "type": file_extension[1:].upper(),
+                "token_count": token_stats.get("token_count", 0),
+                "character_count": token_stats.get("character_count", 0),
+                "word_count": token_stats.get("word_count", 0),
+                "encoding": token_stats.get("encoding", "unknown")
             })
         
-        logger.info(f"Successfully uploaded {len(uploaded_files)} files")
-        return {"documents": uploaded_files, "count": len(uploaded_files)}
+        # Calculate total token count
+        total_tokens = sum(doc.get("token_count", 0) for doc in uploaded_files)
+        
+        logger.info(f"Successfully uploaded {len(uploaded_files)} files with {total_tokens} total tokens")
+        return {
+            "documents": uploaded_files, 
+            "count": len(uploaded_files),
+            "total_tokens": total_tokens,
+            "token_summary": {
+                "total_tokens": total_tokens,
+                "total_characters": sum(doc.get("character_count", 0) for doc in uploaded_files),
+                "total_words": sum(doc.get("word_count", 0) for doc in uploaded_files),
+                "encoding": token_counter.encoding_name
+            }
+        }
         
     except Exception as e:
         logger.error(f"File upload failed: {str(e)}")
@@ -428,6 +450,183 @@ async def troubleshoot_ollama_workflow(config: WorkflowConfig):
     except Exception as e:
         logger.error(f"Ollama workflow test failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Ollama workflow test failed: {str(e)}")
+
+@app.get("/document-tokens")
+async def get_document_tokens():
+    """Get token statistics for all uploaded documents"""
+    try:
+        token_counter = TokenCounter()
+        
+        # Get all uploaded documents
+        document_paths = []
+        if os.path.exists(UPLOAD_DIR):
+            for filename in os.listdir(UPLOAD_DIR):
+                if filename.lower().endswith(('.pdf', '.csv', '.txt')):
+                    document_paths.append(os.path.join(UPLOAD_DIR, filename))
+        
+        if not document_paths:
+            return {
+                "documents": [],
+                "summary": {
+                    "total_tokens": 0,
+                    "total_characters": 0,
+                    "total_words": 0,
+                    "total_files": 0,
+                    "successful_files": 0,
+                    "failed_files": 0,
+                    "encoding": token_counter.encoding_name
+                }
+            }
+        
+        # Count tokens for all documents
+        results = token_counter.count_tokens_in_documents(document_paths)
+        
+        # Add context window analysis for common models
+        context_windows = token_counter.get_model_context_windows()
+        total_tokens = results["summary"]["total_tokens"]
+        
+        context_analysis = {}
+        for model, window_size in context_windows.items():
+            analysis = token_counter.estimate_context_window_usage(total_tokens, window_size)
+            context_analysis[model] = analysis
+        
+        results["context_analysis"] = context_analysis
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Failed to get document tokens: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document tokens: {str(e)}")
+
+@app.get("/document-tokens/{document_id}")
+async def get_document_token_details(document_id: str):
+    """Get detailed token statistics for a specific document"""
+    try:
+        token_counter = TokenCounter()
+        
+        # Find the document file
+        document_path = None
+        if os.path.exists(UPLOAD_DIR):
+            for filename in os.listdir(UPLOAD_DIR):
+                if filename.startswith(document_id):
+                    document_path = os.path.join(UPLOAD_DIR, filename)
+                    break
+        
+        if not document_path or not os.path.exists(document_path):
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get detailed token statistics
+        token_stats = token_counter.count_tokens_in_file(document_path)
+        
+        # Add context window analysis
+        context_windows = token_counter.get_model_context_windows()
+        token_count = token_stats.get("token_count", 0)
+        
+        context_analysis = {}
+        for model, window_size in context_windows.items():
+            analysis = token_counter.estimate_context_window_usage(token_count, window_size)
+            context_analysis[model] = analysis
+        
+        return {
+            "document_id": document_id,
+            "document_path": document_path,
+            "document_name": os.path.basename(document_path),
+            "token_stats": token_stats,
+            "context_analysis": context_analysis,
+            "formatted_token_count": token_counter.format_token_count(token_count)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get document token details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document token details: {str(e)}")
+
+@app.delete("/clear-documents")
+async def clear_documents():
+    """Clear all uploaded documents and reset system"""
+    try:
+        deleted_count = 0
+        
+        # Clear uploaded documents
+        if os.path.exists(UPLOAD_DIR):
+            for filename in os.listdir(UPLOAD_DIR):
+                file_path = os.path.join(UPLOAD_DIR, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_count += 1
+        
+        # Clear vector database
+        vector_db_dir = os.path.join(os.path.dirname(__file__), "vector_db")
+        if os.path.exists(vector_db_dir):
+            shutil.rmtree(vector_db_dir)
+            os.makedirs(vector_db_dir, exist_ok=True)
+        
+        # Clear backend uploads
+        backend_uploads = os.path.join(os.path.dirname(__file__), "uploads")
+        if os.path.exists(backend_uploads):
+            shutil.rmtree(backend_uploads)
+            os.makedirs(backend_uploads, exist_ok=True)
+        
+        # Clear root uploads
+        root_uploads = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+        if os.path.exists(root_uploads):
+            shutil.rmtree(root_uploads)
+            os.makedirs(root_uploads, exist_ok=True)
+        
+        logger.info(f"Cleared {deleted_count} documents and reset system")
+        return {
+            "status": "success", 
+            "deleted_count": deleted_count, 
+            "message": f"Cleared {deleted_count} documents and reset system"
+        }
+    except Exception as e:
+        logger.error(f"Failed to clear documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear documents: {str(e)}")
+
+@app.post("/troubleshoot/enhanced-llm-evaluation")
+async def run_enhanced_llm_evaluation():
+    """Run enhanced LLM evaluation with thinking model support"""
+    try:
+        # Check if there are uploaded documents
+        document_paths = []
+        if os.path.exists(UPLOAD_DIR):
+            for filename in os.listdir(UPLOAD_DIR):
+                if filename.lower().endswith(('.pdf', '.csv', '.txt')):
+                    document_paths.append(os.path.join(UPLOAD_DIR, filename))
+        
+        if not document_paths:
+            raise HTTPException(
+                status_code=400, 
+                detail="No documents found. Please upload documents first."
+            )
+        
+        # Use the first document for evaluation
+        document_path = document_paths[0]
+        
+        # Send initial status
+        await websocket_manager.broadcast({
+            "type": "log",
+            "level": "info",
+            "message": f"Starting Enhanced LLM Evaluation using document: {os.path.basename(document_path)}"
+        })
+        
+        # Run the enhanced evaluation in background
+        asyncio.create_task(
+            troubleshooting_manager.run_enhanced_llm_evaluation(document_path, websocket_manager)
+        )
+        
+        return {
+            "status": "started",
+            "message": "Enhanced LLM evaluation started",
+            "document": os.path.basename(document_path)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Enhanced LLM evaluation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Enhanced LLM evaluation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -182,6 +182,207 @@ class TroubleshootingManager:
         
         return results
     
+    async def run_enhanced_llm_evaluation(self, document_path: str, websocket_manager=None) -> Dict[str, Any]:
+        """Run enhanced LLM evaluation with thinking model support"""
+        results = {
+            "test_name": "Enhanced LLM Evaluation",
+            "timestamp": datetime.now().isoformat(),
+            "tests": [],
+            "overall_status": "running"
+        }
+        
+        def log_message(message: str, level: str = "info"):
+            if websocket_manager:
+                asyncio.create_task(websocket_manager.broadcast({
+                    "type": "troubleshoot_log",
+                    "test": "enhanced_llm_evaluation",
+                    "message": message,
+                    "level": level,
+                    "timestamp": datetime.now().isoformat()
+                }))
+        
+        try:
+            log_message("Starting Enhanced LLM Evaluation...")
+            log_message(f"Using document: {os.path.basename(document_path)}")
+            
+            # Import and run the enhanced evaluator
+            try:
+                import subprocess
+                import sys
+                
+                # Get the path to the enhanced evaluator script
+                script_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), 
+                    "troubleshooting", 
+                    "scripts", 
+                    "enhanced_llm_evaluator.py"
+                )
+                
+                if not os.path.exists(script_path):
+                    raise FileNotFoundError(f"Enhanced evaluator script not found at: {script_path}")
+                
+                log_message("Running enhanced LLM evaluator script...")
+                log_message("This may take several minutes depending on the number of models...")
+                
+                # Run the enhanced evaluator
+                process = subprocess.Popen(
+                    [sys.executable, script_path, document_path, "--mode", "batch"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=os.path.dirname(os.path.dirname(__file__))
+                )
+                
+                # Stream output in real-time
+                while True:
+                    output = process.stdout.readline()
+                    if output == '' and process.poll() is not None:
+                        break
+                    if output:
+                        log_message(output.strip())
+                
+                # Wait for completion
+                stdout, stderr = process.communicate()
+                
+                if process.returncode == 0:
+                    results["tests"].append({
+                        "name": "Enhanced LLM Evaluation Execution",
+                        "status": "passed",
+                        "message": "Enhanced LLM evaluation completed successfully",
+                        "return_code": process.returncode
+                    })
+                    log_message("✓ Enhanced LLM evaluation completed successfully", "success")
+                    
+                    # Look for result files
+                    backend_dir = os.path.dirname(__file__)
+                    result_files = []
+                    
+                    for filename in os.listdir(backend_dir):
+                        if filename.startswith("enhanced_llm_evaluation_") and filename.endswith(".json"):
+                            result_files.append(filename)
+                    
+                    if result_files:
+                        results["tests"].append({
+                            "name": "Result Files Generated",
+                            "status": "passed",
+                            "message": f"Generated {len(result_files)} result files",
+                            "result_files": result_files
+                        })
+                        log_message(f"✓ Generated {len(result_files)} result files", "success")
+                        
+                        # Try to load the latest report
+                        report_files = [f for f in result_files if "report" in f]
+                        if report_files:
+                            latest_report = max(report_files, key=lambda x: os.path.getctime(os.path.join(backend_dir, x)))
+                            try:
+                                with open(os.path.join(backend_dir, latest_report), 'r') as f:
+                                    report_data = json.load(f)
+                                
+                                # Extract key metrics
+                                model_rankings = report_data.get("model_rankings", [])
+                                if model_rankings:
+                                    best_model = model_rankings[0]
+                                    results["tests"].append({
+                                        "name": "Evaluation Results Summary",
+                                        "status": "passed",
+                                        "message": f"Best performing model: {best_model['model']} ({best_model['overall_percentage']:.1f}%)",
+                                        "best_model": best_model,
+                                        "total_models_tested": len(model_rankings),
+                                        "report_file": latest_report
+                                    })
+                                    log_message(f"✓ Best model: {best_model['model']} ({best_model['overall_percentage']:.1f}%)", "success")
+                                
+                                # Check for thinking model analysis
+                                thinking_analysis = report_data.get("thinking_model_analysis", {})
+                                if thinking_analysis:
+                                    results["tests"].append({
+                                        "name": "Thinking Models Analysis",
+                                        "status": "passed",
+                                        "message": f"Analyzed {len(thinking_analysis)} thinking models",
+                                        "thinking_models": list(thinking_analysis.keys())
+                                    })
+                                    log_message(f"✓ Analyzed {len(thinking_analysis)} thinking models", "success")
+                                
+                                # Check manager assistance
+                                assistance_summary = report_data.get("manager_assistance_summary", {})
+                                if assistance_summary.get("total_assistance", 0) > 0:
+                                    results["tests"].append({
+                                        "name": "Manager Assistance",
+                                        "status": "passed",
+                                        "message": f"Manager provided assistance {assistance_summary['total_assistance']} times",
+                                        "assistance_summary": assistance_summary
+                                    })
+                                    log_message(f"✓ Manager assistance: {assistance_summary['total_assistance']} times", "success")
+                                
+                            except Exception as e:
+                                log_message(f"⚠ Could not parse report file: {str(e)}", "warning")
+                    else:
+                        results["tests"].append({
+                            "name": "Result Files Generated",
+                            "status": "warning",
+                            "message": "No result files found after evaluation"
+                        })
+                        log_message("⚠ No result files found after evaluation", "warning")
+                
+                else:
+                    error_output = stderr if stderr else "Unknown error"
+                    results["tests"].append({
+                        "name": "Enhanced LLM Evaluation Execution",
+                        "status": "failed",
+                        "message": "Enhanced LLM evaluation failed",
+                        "return_code": process.returncode,
+                        "error": error_output
+                    })
+                    log_message(f"✗ Enhanced LLM evaluation failed: {error_output}", "error")
+                
+            except FileNotFoundError as e:
+                results["tests"].append({
+                    "name": "Enhanced Evaluator Script",
+                    "status": "failed",
+                    "message": "Enhanced evaluator script not found",
+                    "error": str(e)
+                })
+                log_message(f"✗ Enhanced evaluator script not found: {str(e)}", "error")
+            
+            except Exception as e:
+                results["tests"].append({
+                    "name": "Enhanced LLM Evaluation Setup",
+                    "status": "failed",
+                    "message": "Failed to setup enhanced LLM evaluation",
+                    "error": str(e)
+                })
+                log_message(f"✗ Enhanced LLM evaluation setup failed: {str(e)}", "error")
+            
+            # Determine overall status
+            passed_tests = sum(1 for test in results["tests"] if test["status"] == "passed")
+            failed_tests = sum(1 for test in results["tests"] if test["status"] == "failed")
+            warning_tests = sum(1 for test in results["tests"] if test["status"] == "warning")
+            
+            if failed_tests == 0 and warning_tests == 0:
+                results["overall_status"] = "passed"
+                log_message("✓ Enhanced LLM evaluation completed successfully!", "success")
+            elif failed_tests == 0:
+                results["overall_status"] = "warning"
+                log_message("⚠ Enhanced LLM evaluation completed with warnings", "warning")
+            else:
+                results["overall_status"] = "failed"
+                log_message("✗ Enhanced LLM evaluation failed", "error")
+            
+            results["summary"] = {
+                "total_tests": len(results["tests"]),
+                "passed": passed_tests,
+                "failed": failed_tests,
+                "warnings": warning_tests
+            }
+            
+        except Exception as e:
+            log_message(f"✗ Enhanced LLM evaluation test suite failed: {str(e)}", "error")
+            results["overall_status"] = "failed"
+            results["error"] = str(e)
+            results["traceback"] = traceback.format_exc()
+        
+        return results
+    
     async def run_docker_ollama_test(self, websocket_manager=None) -> Dict[str, Any]:
         """Test Docker Ollama connection specifically"""
         results = {

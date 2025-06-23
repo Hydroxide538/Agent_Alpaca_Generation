@@ -21,6 +21,10 @@ class DocumentInfo(BaseModel):
     path: str
     size: int
     type: str
+    token_count: Optional[int] = None
+    character_count: Optional[int] = None
+    word_count: Optional[int] = None
+    encoding: Optional[str] = None
 
 class WorkflowConfig(BaseModel):
     data_generation_model: str

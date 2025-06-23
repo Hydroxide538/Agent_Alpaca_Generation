@@ -7,11 +7,11 @@ import asyncio
 import sys
 import os
 
-# Add the src directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
+# Get the project root directory (two levels up from the current script)
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, project_root) # Add project root to sys.path
 
-from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
+from src.local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew import LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew
 
 def test_crew_workflow():
     """Test the CrewAI workflow execution"""

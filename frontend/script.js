@@ -29,6 +29,7 @@ class WorkflowManager {
         document.getElementById('clearLogsBtn').addEventListener('click', () => this.clearLogs());
         document.getElementById('refreshResultsBtn').addEventListener('click', () => this.loadResultsFromBackend());
         document.getElementById('clearResultsBtn').addEventListener('click', () => this.clearResults());
+        document.getElementById('clearDocsBtn').addEventListener('click', () => this.clearDocuments());
         
         // Model refresh events
         document.getElementById('refreshModelsBtn').addEventListener('click', () => this.refreshOllamaModels());
@@ -257,8 +258,13 @@ class WorkflowManager {
             if (response.ok) {
                 const result = await response.json();
                 this.uploadedDocuments = result.documents;
-                this.logMessage(`Successfully uploaded ${files.length} document(s)`, 'success');
-                this.showAlert('Documents uploaded successfully!', 'success');
+                this.tokenSummary = result.token_summary;
+                
+                // Update the document list display with token information
+                this.updateDocumentListDisplay();
+                
+                this.logMessage(`Successfully uploaded ${files.length} document(s) with ${result.total_tokens} tokens`, 'success');
+                this.showAlert(`Documents uploaded successfully! Total tokens: ${this.formatTokenCount(result.total_tokens)}`, 'success');
             } else {
                 const error = await response.json();
                 throw new Error(error.detail || 'Upload failed');
@@ -1113,6 +1119,300 @@ class WorkflowManager {
             refreshBtn.innerHTML = '<i class="fas fa-sync me-2"></i>Refresh Models';
         }
     }
+
+    formatTokenCount(tokenCount) {
+        if (tokenCount < 1000) {
+            return `${tokenCount} tokens`;
+        } else if (tokenCount < 1000000) {
+            return `${(tokenCount/1000).toFixed(1)}K tokens`;
+        } else {
+            return `${(tokenCount/1000000).toFixed(1)}M tokens`;
+        }
+    }
+
+    updateDocumentListDisplay() {
+        const fileList = document.getElementById('documentList');
+        
+        if (!this.uploadedDocuments || this.uploadedDocuments.length === 0) {
+            fileList.innerHTML = '<div class="text-muted text-center py-3">No documents uploaded</div>';
+            return;
+        }
+
+        fileList.innerHTML = '';
+
+        // Add summary header if we have token information
+        if (this.tokenSummary) {
+            const summaryItem = document.createElement('div');
+            summaryItem.className = 'document-summary mb-3 p-3 bg-light rounded';
+            summaryItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-calculator me-2"></i>Token Summary</h6>
+                        <small class="text-muted">${this.uploadedDocuments.length} document(s) uploaded</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold text-primary">${this.formatTokenCount(this.tokenSummary.total_tokens)}</div>
+                        <small class="text-muted">Total tokens</small>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-4">
+                        <small class="text-muted d-block">Characters</small>
+                        <span class="fw-bold">${this.tokenSummary.total_characters.toLocaleString()}</span>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Words</small>
+                        <span class="fw-bold">${this.tokenSummary.total_words.toLocaleString()}</span>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Encoding</small>
+                        <span class="fw-bold">${this.tokenSummary.encoding}</span>
+                    </div>
+                </div>
+            `;
+            fileList.appendChild(summaryItem);
+        }
+
+        // Add individual document items
+        this.uploadedDocuments.forEach(doc => {
+            const fileItem = this.createUploadedFileItem(doc);
+            fileList.appendChild(fileItem);
+        });
+    }
+
+    createUploadedFileItem(doc) {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'document-item fade-in';
+        
+        const fileIcon = this.getFileIcon(doc.original_name);
+        const fileSize = this.formatFileSize(doc.size);
+        const tokenCount = doc.token_count || 0;
+        const formattedTokens = this.formatTokenCount(tokenCount);
+        
+        // Determine token count color based on size
+        let tokenClass = 'text-success';
+        if (tokenCount > 10000) tokenClass = 'text-warning';
+        if (tokenCount > 50000) tokenClass = 'text-danger';
+        
+        fileItem.innerHTML = `
+            <div class="document-info">
+                <i class="${fileIcon} document-icon"></i>
+                <div class="flex-grow-1">
+                    <div class="document-name">${doc.original_name}</div>
+                    <div class="document-details">
+                        <span class="document-size">${fileSize}</span>
+                        <span class="mx-2">•</span>
+                        <span class="document-tokens ${tokenClass}">${formattedTokens}</span>
+                        ${doc.word_count ? `<span class="mx-2">•</span><span class="text-muted">${doc.word_count.toLocaleString()} words</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="document-actions">
+                <button class="btn btn-sm btn-outline-info me-1" onclick="workflowManager.showDocumentTokenDetails('${doc.id}')" title="View token details">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="workflowManager.removeDocument('${doc.id}')" title="Remove document">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        return fileItem;
+    }
+
+    async showDocumentTokenDetails(documentId) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/document-tokens/${documentId}`);
+            if (response.ok) {
+                const details = await response.json();
+                this.displayTokenDetailsModal(details);
+            } else {
+                throw new Error('Failed to load token details');
+            }
+        } catch (error) {
+            this.showAlert(`Failed to load token details: ${error.message}`, 'error');
+        }
+    }
+
+    displayTokenDetailsModal(details) {
+        const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+        const modalContent = document.getElementById('modalContent');
+        
+        // Create context window analysis table
+        let contextAnalysisHtml = '';
+        if (details.context_analysis) {
+            contextAnalysisHtml = `
+                <h6 class="mt-4">Context Window Analysis</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Context Size</th>
+                                <th>Usage</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            Object.entries(details.context_analysis).forEach(([model, analysis]) => {
+                const statusClass = analysis.status === 'low' ? 'success' : 
+                                  analysis.status === 'medium' ? 'warning' : 
+                                  analysis.status === 'high' ? 'danger' : 'dark';
+                
+                contextAnalysisHtml += `
+                    <tr>
+                        <td>${model}</td>
+                        <td>${analysis.context_window_size.toLocaleString()}</td>
+                        <td>${analysis.usage_percentage}%</td>
+                        <td><span class="badge bg-${statusClass}">${analysis.status}</span></td>
+                    </tr>
+                `;
+            });
+            
+            contextAnalysisHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        modalContent.innerHTML = `
+            <h6><i class="fas fa-file-alt me-2"></i>${details.document_name}</h6>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">Token Statistics</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <div class="h4 text-primary">${details.formatted_token_count}</div>
+                                        <small class="text-muted">Total Tokens</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <div class="h4 text-info">${details.token_stats.word_count?.toLocaleString() || 'N/A'}</div>
+                                        <small class="text-muted">Words</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Characters</small>
+                                    <span>${details.token_stats.character_count?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Encoding</small>
+                                    <span>${details.token_stats.encoding || 'Unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">File Information</h6>
+                            <div class="row">
+                                <div class="col-12">
+                                    <small class="text-muted d-block">File Size</small>
+                                    <span>${this.formatFileSize(details.token_stats.file_size || 0)}</span>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-12">
+                                    <small class="text-muted d-block">Document ID</small>
+                                    <code class="small">${details.document_id}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            ${contextAnalysisHtml}
+        `;
+        
+        modal.show();
+    }
+
+    removeDocument(documentId) {
+        // Remove from uploaded documents array
+        this.uploadedDocuments = this.uploadedDocuments.filter(doc => doc.id !== documentId);
+        
+        // Recalculate token summary
+        if (this.uploadedDocuments.length > 0) {
+            this.tokenSummary = {
+                total_tokens: this.uploadedDocuments.reduce((sum, doc) => sum + (doc.token_count || 0), 0),
+                total_characters: this.uploadedDocuments.reduce((sum, doc) => sum + (doc.character_count || 0), 0),
+                total_words: this.uploadedDocuments.reduce((sum, doc) => sum + (doc.word_count || 0), 0),
+                encoding: this.uploadedDocuments[0]?.encoding || 'unknown'
+            };
+        } else {
+            this.tokenSummary = null;
+        }
+        
+        // Update display
+        this.updateDocumentListDisplay();
+        
+        this.logMessage(`Removed document from upload list`, 'info');
+    }
+
+    async clearDocuments() {
+        // Show confirmation dialog
+        if (!confirm('Are you sure you want to clear all documents and reset the system? This will remove all uploaded documents, vector databases, and cached data. This action cannot be undone.')) {
+            return;
+        }
+
+        const clearBtn = document.getElementById('clearDocsBtn');
+        const originalText = clearBtn.innerHTML;
+        
+        try {
+            // Show loading state
+            clearBtn.disabled = true;
+            clearBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Clearing...';
+            
+            const response = await fetch(`${this.apiBaseUrl}/clear-documents`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.logMessage(`Cleared ${result.deleted_count} documents and reset system`, 'success');
+                this.showAlert(`Successfully cleared ${result.deleted_count} documents and reset system`, 'success');
+                
+                // Reset local state
+                this.uploadedDocuments = [];
+                this.tokenSummary = null;
+                
+                // Clear file input
+                const fileInput = document.getElementById('documentUpload');
+                fileInput.value = '';
+                
+                // Update document list display
+                this.updateDocumentListDisplay();
+                
+                // Refresh results display
+                this.loadResultsFromBackend();
+            } else {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to clear documents');
+            }
+        } catch (error) {
+            this.logMessage(`Failed to clear documents: ${error.message}`, 'error');
+            this.showAlert(`Failed to clear documents: ${error.message}`, 'error');
+        } finally {
+            // Reset button state
+            clearBtn.disabled = false;
+            clearBtn.innerHTML = originalText;
+        }
+    }
 }
 
 // Initialize the workflow manager when the page loads
@@ -1139,6 +1439,7 @@ class TroubleshootingManager {
         document.getElementById('runLlmDebugTest').addEventListener('click', () => this.runLlmDebugTest());
         document.getElementById('runCrewWorkflowTest').addEventListener('click', () => this.runCrewWorkflowTest());
         document.getElementById('runOllamaWorkflowTest').addEventListener('click', () => this.runOllamaWorkflowTest());
+        document.getElementById('runEnhancedLlmEvaluation').addEventListener('click', () => this.runEnhancedLlmEvaluation());
         document.getElementById('runAllTests').addEventListener('click', () => this.runAllTests());
         
         // Utility buttons
@@ -1417,6 +1718,41 @@ class TroubleshootingManager {
         } catch (error) {
             this.workflowManager.logMessage(`Ollama Workflow Test failed: ${error.message}`, 'error');
             this.updateTestStatus('ollama-workflow', 'error', error.message);
+        }
+    }
+
+    async runEnhancedLlmEvaluation() {
+        this.setTestRunning('enhanced-llm-evaluation');
+        this.clearLogsView();
+        
+        try {
+            // Check if documents are uploaded
+            if (!this.workflowManager.uploadedDocuments || this.workflowManager.uploadedDocuments.length === 0) {
+                this.workflowManager.showAlert('Please upload documents first before running LLM evaluation', 'warning');
+                this.updateTestStatus('enhanced_llm_evaluation', 'error', 'No documents uploaded');
+                return;
+            }
+
+            this.workflowManager.logMessage('Starting Enhanced LLM Evaluation...', 'info');
+            this.workflowManager.logMessage('This comprehensive evaluation may take several minutes depending on the number of models available.', 'info');
+            
+            const response = await fetch(`${this.workflowManager.apiBaseUrl}/troubleshoot/enhanced-llm-evaluation`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const results = await response.json();
+                this.currentTestResults['enhanced-llm-evaluation'] = results;
+                this.workflowManager.logMessage('Enhanced LLM Evaluation started successfully', 'success');
+                this.workflowManager.logMessage('Check the live logs for real-time progress updates...', 'info');
+                this.displayTestResults();
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}`);
+            }
+        } catch (error) {
+            this.workflowManager.logMessage(`Enhanced LLM Evaluation failed: ${error.message}`, 'error');
+            this.updateTestStatus('enhanced_llm_evaluation', 'error', error.message);
         }
     }
 

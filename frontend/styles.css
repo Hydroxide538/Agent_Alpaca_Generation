@@ -1317,3 +1317,559 @@ small {
 .results-cleared {
     animation: successPulse 0.3s ease-out;
 }
+
+/* Token Display Styles */
+.document-summary {
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.document-summary h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.document-summary .fa-calculator {
+    color: var(--primary-color);
+    margin-right: 0.5rem;
+}
+
+.document-summary .fw-bold {
+    font-weight: 700;
+}
+
+.document-summary .text-primary {
+    color: var(--primary-color) !important;
+    font-size: 1.25rem;
+}
+
+.document-summary .text-end {
+    text-align: right;
+}
+
+.document-summary .row {
+    margin-top: 1rem;
+}
+
+.document-summary .col-4 {
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+}
+
+.document-summary .col-4 small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.document-summary .col-4 .fw-bold {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+/* Enhanced Document Item Styles */
+.document-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, var(--bg-tertiary), rgba(255,255,255,0.02));
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.document-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--primary-color), var(--info-color));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.document-item:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.document-item:hover::before {
+    opacity: 1;
+}
+
+.document-info {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.document-icon {
+    margin-right: 1rem;
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.document-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.document-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.document-size {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.document-tokens {
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.document-tokens.text-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #75b798;
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+.document-tokens.text-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffda6a;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.document-tokens.text-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #f1919a;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.document-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+.document-actions .btn {
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.document-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.document-actions .btn-outline-info {
+    border-color: var(--info-color);
+    color: var(--info-color);
+    background-color: transparent;
+}
+
+.document-actions .btn-outline-info:hover {
+    background-color: var(--info-color);
+    color: #000;
+    border-color: var(--info-color);
+}
+
+.document-actions .btn-outline-danger {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+    background-color: transparent;
+}
+
+.document-actions .btn-outline-danger:hover {
+    background-color: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
+/* Token Details Modal Styles */
+.token-details-modal .card {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.token-details-modal .card-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.token-details-modal .card-title i {
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+}
+
+.token-details-modal .h4 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.token-details-modal .text-center {
+    padding: 1rem 0.5rem;
+}
+
+.token-details-modal .text-center small {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.token-details-modal hr {
+    border-color: var(--border-color);
+    margin: 1rem 0;
+}
+
+.token-details-modal .row > div {
+    padding: 0.5rem;
+}
+
+.token-details-modal .row > div small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-details-modal .row > div span {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.token-details-modal code {
+    background-color: var(--bg-primary);
+    color: var(--info-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+}
+
+/* Context Window Analysis Table */
+.token-details-modal .table {
+    background-color: transparent;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.token-details-modal .table th {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-details-modal .table td {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.token-details-modal .table tbody tr:hover {
+    background-color: rgba(255,255,255,0.03);
+}
+
+.token-details-modal .table-responsive {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+/* Context Analysis Badges */
+.token-details-modal .badge.bg-success {
+    background-color: rgba(25, 135, 84, 0.9) !important;
+    color: white;
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-details-modal .badge.bg-warning {
+    background-color: rgba(255, 193, 7, 0.9) !important;
+    color: #000;
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-details-modal .badge.bg-danger {
+    background-color: rgba(220, 53, 69, 0.9) !important;
+    color: white;
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-details-modal .badge.bg-dark {
+    background-color: rgba(33, 37, 41, 0.9) !important;
+    color: white;
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive Token Display */
+@media (max-width: 768px) {
+    .document-summary {
+        padding: 1rem;
+    }
+    
+    .document-summary .text-primary {
+        font-size: 1.1rem;
+    }
+    
+    .document-summary .row {
+        margin-top: 0.75rem;
+    }
+    
+    .document-summary .col-4 {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .document-item {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .document-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .document-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .document-actions {
+        justify-content: center;
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+    
+    .token-details-modal .row {
+        margin: 0;
+    }
+    
+    .token-details-modal .col-md-6 {
+        margin-bottom: 1rem;
+        padding: 0;
+    }
+    
+    .token-details-modal .h4 {
+        font-size: 1.5rem;
+    }
+    
+    .token-details-modal .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .token-details-modal .table th,
+    .token-details-modal .table td {
+        padding: 0.5rem;
+    }
+}
+
+/* Token count animations */
+@keyframes tokenCountUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.document-tokens {
+    animation: tokenCountUp 0.3s ease-out;
+}
+
+/* Pulse animation for high token counts */
+@keyframes tokenWarning {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+    }
+    50% { 
+        box-shadow: 0 0 0 8px rgba(255, 193, 7, 0);
+    }
+}
+
+.document-tokens.text-danger {
+    animation: tokenWarning 2s infinite;
+}
+
+/* Enhanced tooltip for token information */
+.token-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.token-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--dark-color);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+.token-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--dark-color);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+.token-tooltip:hover::after,
+.token-tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Loading state for token counting */
+.token-loading {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background-size: 200% 100%;
+    animation: tokenShimmer 1.5s infinite;
+}
+
+@keyframes tokenShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Token summary gradient background */
+.document-summary {
+    background: linear-gradient(135deg, 
+        var(--bg-tertiary) 0%, 
+        rgba(13, 110, 253, 0.05) 50%, 
+        var(--bg-secondary) 100%);
+    border: 1px solid rgba(13, 110, 253, 0.2);
+}
+
+/* Enhanced focus states for accessibility */
+.document-actions .btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.document-item:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
+/* Print styles for token information */
+@media print {
+    .document-summary,
+    .document-item {
+        background: white !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    .document-actions {
+        display: none;
+    }
+    
+    .document-tokens {
+        background: #f0f0f0 !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+    }
+}
