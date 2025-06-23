@@ -214,7 +214,7 @@ class TroubleshootingManager:
                 # Test connection to Ollama
                 log_message("Testing connection to Ollama server...")
                 try:
-                    async with session.get(f"{ollama_url}/api/tags", timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    async with session.get(f"{ollama_url}/api/tags", timeout=aiohttp.ClientTimeout(total=60)) as response:
                         if response.status == 200:
                             models_data = await response.json()
                             available_models = [model["name"] for model in models_data.get("models", [])]
@@ -240,7 +240,7 @@ class TroubleshootingManager:
                                     async with session.post(
                                         f"{ollama_url}/api/embeddings",
                                         json=test_payload,
-                                        timeout=aiohttp.ClientTimeout(total=30)
+                                        timeout=aiohttp.ClientTimeout(total=300)
                                     ) as model_response:
                                         if model_response.status == 200:
                                             result = await model_response.json()
@@ -274,7 +274,7 @@ class TroubleshootingManager:
                                         "name": f"Model Test ({model_name})",
                                         "status": "failed",
                                         "message": f"Model {model_name} test timeout",
-                                        "error": "Timeout after 30 seconds"
+                                        "error": "Timeout after 300 seconds"
                                     })
                                     log_message(f"✗ Model {model_name} test timeout", "error")
                             else:
@@ -298,7 +298,7 @@ class TroubleshootingManager:
                         "name": "Docker Ollama Connection",
                         "status": "failed",
                         "message": "Connection timeout - Ollama server may not be accessible from Docker",
-                        "error": "Timeout after 10 seconds"
+                        "error": "Timeout after 60 seconds"
                     })
                     log_message("✗ Docker Ollama connection timeout", "error")
                 except Exception as e:

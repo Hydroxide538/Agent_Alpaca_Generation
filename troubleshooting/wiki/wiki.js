@@ -82,51 +82,100 @@ class TroubleshootingWiki {
         return [
             {
                 name: 'API Health Test',
-                file: 'test_api.py',
+                file: 'troubleshooting/scripts/test_api.py',
                 description: 'Basic API health testing for localhost and Docker Ollama connections',
                 category: 'api',
                 integrated: true
             },
             {
+                name: 'ChromaDB Fix Test',
+                file: 'troubleshooting/scripts/test_chromadb_fix.py',
+                description: 'Test ChromaDB connection and vector database functionality',
+                category: 'database',
+                integrated: true
+            },
+            {
                 name: 'CrewAI Workflow Test',
-                file: 'test_crew_workflow.py',
+                file: 'troubleshooting/scripts/test_crew_workflow.py',
                 description: 'Comprehensive CrewAI workflow execution testing with proper model configuration',
                 category: 'workflow',
                 integrated: false
             },
             {
-                name: 'Workflow Fix Test',
-                file: 'test_workflow_fix.py',
-                description: 'Quick test to verify workflow manager fix resolves LLM failures',
+                name: 'CrewAI Fix Test',
+                file: 'troubleshooting/scripts/test_crewai_fix.py',
+                description: 'Test CrewAI specific fixes and configurations',
                 category: 'workflow',
-                integrated: false
+                integrated: true
             },
             {
                 name: 'Docker Ollama Test',
-                file: 'test_docker_ollama.py',
+                file: 'troubleshooting/scripts/test_docker_ollama.py',
                 description: 'Test Ollama connection from Docker environment with detailed debugging',
                 category: 'docker',
                 integrated: true
             },
             {
+                name: 'Fix Verification Test',
+                file: 'troubleshooting/scripts/test_fix_verification.py',
+                description: 'Comprehensive test to verify all applied fixes are working correctly',
+                category: 'verification',
+                integrated: true
+            },
+            {
+                name: 'Improved Alpaca Test',
+                file: 'troubleshooting/scripts/test_improved_alpaca.py',
+                description: 'Test improved Alpaca format data generation with enhanced features',
+                category: 'alpaca',
+                integrated: true
+            },
+            {
+                name: 'LiteLLM Fix Test',
+                file: 'troubleshooting/scripts/test_litellm_fix.py',
+                description: 'Test LiteLLM integration fixes and configurations',
+                category: 'llm',
+                integrated: true
+            },
+            {
                 name: 'Model Debug Test',
-                file: 'test_model_debug.py',
+                file: 'troubleshooting/scripts/test_model_debug.py',
                 description: 'Detailed model debugging for specific models like bge-m3',
                 category: 'model',
                 integrated: true
             },
             {
                 name: 'Ollama Workflow Test',
-                file: 'test_ollama_workflow.py',
+                file: 'troubleshooting/scripts/test_ollama_workflow.py',
                 description: 'Test Ollama workflow configuration with dynamic model selection',
                 category: 'workflow',
                 integrated: false
             },
             {
+                name: 'Workflow Fix Test',
+                file: 'troubleshooting/scripts/test_workflow_fix.py',
+                description: 'Quick test to verify workflow manager fix resolves LLM failures',
+                category: 'workflow',
+                integrated: false
+            },
+            {
+                name: 'Workflow Integration Test',
+                file: 'troubleshooting/scripts/test_workflow_integration.py',
+                description: 'Test complete workflow integration and end-to-end functionality',
+                category: 'workflow',
+                integrated: true
+            },
+            {
                 name: 'Workflow Model Test',
-                file: 'test_workflow_model.py',
+                file: 'troubleshooting/scripts/test_workflow_model.py',
                 description: 'Test workflow model setup and configuration',
                 category: 'model',
+                integrated: true
+            },
+            {
+                name: 'LLM Manager Debug',
+                file: 'troubleshooting/scripts/debug_llm_manager.py',
+                description: 'Comprehensive LLM manager debugging and diagnostics',
+                category: 'llm',
                 integrated: true
             }
         ];
@@ -142,7 +191,7 @@ class TroubleshootingWiki {
                     'Check if Ollama server is running on the correct port',
                     'Verify model names match available models in Ollama',
                     'Ensure Docker URL is set to host.docker.internal:11434',
-                    'Run workflow fix test: python test_workflow_fix.py'
+                    'Run workflow fix test: python troubleshooting/scripts/test_workflow_fix.py'
                 ]
             },
             {
@@ -175,7 +224,7 @@ class TroubleshootingWiki {
                     'Use host.docker.internal:11434 instead of localhost:11434',
                     'Ensure Ollama is running on the host machine',
                     'Check Docker network configuration',
-                    'Test connection with: python test_docker_ollama.py'
+                    'Test connection with: python troubleshooting/scripts/test_docker_ollama.py'
                 ]
             },
             {

@@ -118,8 +118,8 @@ class LLMManager:
     async def _test_ollama_model(self, model_name: str) -> TestResult:
         """Test Ollama model"""
         try:
-            # Add timeout to prevent hanging
-            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            # Add timeout to prevent hanging - increased for large models like llama3.3
+            timeout = aiohttp.ClientTimeout(total=300, connect=30)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 # First check if model exists
                 async with session.get(f"{self.ollama_base_url}/api/tags") as response:

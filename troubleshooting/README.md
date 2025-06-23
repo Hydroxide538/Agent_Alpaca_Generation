@@ -7,16 +7,44 @@ This directory contains the enhanced troubleshooting system for the CrewAI Workf
 ```
 troubleshooting/
 ├── README.md                 # This file
-├── history/                  # Troubleshooting history and summary files
-│   ├── alpaca_improvements.md
-│   ├── llm_failure_fix.md
-│   ├── ollama_fix.md
-│   └── workflow_troubleshooting.md
+├── scripts/                  # All test scripts organized by category
+│   ├── README.md            # Test scripts documentation
+│   ├── test_api.py          # API health testing
+│   ├── test_chromadb_fix.py # ChromaDB functionality testing
+│   ├── test_crew_workflow.py # CrewAI workflow execution testing
+│   ├── test_crewai_fix.py   # CrewAI specific fixes testing
+│   ├── test_docker_ollama.py # Docker Ollama connection testing
+│   ├── test_fix_verification.py # Comprehensive fix verification
+│   ├── test_improved_alpaca.py # Improved Alpaca data generation testing
+│   ├── test_litellm_fix.py  # LiteLLM integration testing
+│   ├── test_model_debug.py  # Detailed model debugging
+│   ├── test_ollama_workflow.py # Ollama workflow configuration testing
+│   ├── test_workflow_fix.py # Workflow manager fix verification
+│   ├── test_workflow_integration.py # End-to-end workflow testing
+│   └── test_workflow_model.py # Workflow model setup testing
 ├── wiki/                     # Wiki interface for troubleshooting
 │   ├── index.html           # Main wiki page
 │   └── wiki.js              # Wiki functionality
 └── templates/               # Issue templates and forms
     └── issue_template.md    # Standard issue report template
+```
+
+## Related Directories
+
+```
+knowledge/
+└── wiki/                     # Comprehensive troubleshooting documentation
+    ├── README.md            # Documentation overview
+    ├── ALPACA_IMPROVEMENTS_SUMMARY.md
+    ├── CREWAI_LITELLM_FIX_SUMMARY.md
+    ├── CRITICAL_ERRORS_FIX_SUMMARY.md
+    ├── DEPENDENCY_RESOLUTION_SUMMARY.md
+    ├── FINAL_FIX_SUMMARY.md
+    ├── LITELLM_INDEX_ERROR_FIX_SUMMARY.md
+    ├── LLM_FAILURE_FIX_SUMMARY.md
+    ├── OLLAMA_FIX_SUMMARY.md
+    ├── PYDANTIC_DEPRECATION_FIX_SUMMARY.md
+    └── WORKFLOW_TROUBLESHOOTING_SUMMARY.md
 ```
 
 ## Features
@@ -80,17 +108,25 @@ Standardized issue reporting with:
 
 #### From Command Line:
 ```bash
-# Individual test scripts
-python test_api.py
-python test_crew_workflow.py
-python test_workflow_fix.py
-python test_docker_ollama.py
-python test_model_debug.py
-python test_ollama_workflow.py
-python test_workflow_model.py
+# Individual test scripts (from project root)
+python troubleshooting/scripts/test_api.py
+python troubleshooting/scripts/test_crew_workflow.py
+python troubleshooting/scripts/test_workflow_fix.py
+python troubleshooting/scripts/test_docker_ollama.py
+python troubleshooting/scripts/test_model_debug.py
+python troubleshooting/scripts/test_ollama_workflow.py
+python troubleshooting/scripts/test_workflow_model.py
+
+# Additional test scripts
+python troubleshooting/scripts/test_chromadb_fix.py
+python troubleshooting/scripts/test_crewai_fix.py
+python troubleshooting/scripts/test_fix_verification.py
+python troubleshooting/scripts/test_improved_alpaca.py
+python troubleshooting/scripts/test_litellm_fix.py
+python troubleshooting/scripts/test_workflow_integration.py
 
 # Quick workflow fix verification
-python test_workflow_fix.py
+python troubleshooting/scripts/test_workflow_fix.py
 ```
 
 ### Using the Wiki
