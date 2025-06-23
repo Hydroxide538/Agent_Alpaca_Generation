@@ -3,26 +3,108 @@ import aiohttp
 import time
 import logging
 from typing import Dict, List, Optional, Any
+import asyncio
+import aiohttp
+import time
+import logging
+from typing import Dict, List, Optional, Any
 import openai
+import yaml
+import os
+import json
 from backend.models import WorkflowConfig, TestResult
 from backend.message_validator import MessageValidator
 
 logger = logging.getLogger(__name__)
 
 class LLMManager:
-    """Manages LLM connections and testing for both OpenAI and Ollama"""
+    """Manages LLM connections and testing for both OpenAI and Ollama, and provides dynamic model selection."""
     
     def __init__(self):
         self.openai_client = None
         self.ollama_base_url = "http://host.docker.internal:11434"  # Default for Docker environment
+        self.llm_registry = self._load_llm_registry()
+        self.llm_performance_scores = self._load_llm_performance_scores()
+    
+    def _load_llm_registry(self) -> Dict[str, Any]:
+        """Load LLM registry from config/llms.yaml"""
+        registry_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'llms.yaml')
+        try:
+            with open(registry_path, 'r', encoding='utf-8') as f:
+                registry = yaml.safe_load(f)
+                logger.info(f"Loaded LLM registry from {registry_path}")
+                return registry
+        except FileNotFoundError:
+            logger.warning(f"LLM registry file not found at {registry_path}. Returning empty registry.")
+            return {"ollama_models": [], "external_models": []}
+        except Exception as e:
+            logger.error(f"Error loading LLM registry from {registry_path}: {str(e)}")
+            return {"ollama_models": [], "external_models": []}
+
+    def _load_llm_performance_scores(self) -> Dict[str, Dict[str, Any]]:
+        """Load LLM performance scores from backend/llm_performance_scores.json"""
+        scores_path = os.path.join(os.path.dirname(__file__), 'llm_performance_scores.json')
+        try:
+            if os.path.exists(scores_path):
+                with open(scores_path, 'r', encoding='utf-8') as f:
+                    scores = json.load(f)
+                    logger.info(f"Loaded LLM performance scores from {scores_path}")
+                    return scores
+            return {}
+        except Exception as e:
+            logger.error(f"Error loading LLM performance scores from {scores_path}: {str(e)}")
+            return {}
+
+    def save_llm_performance_scores(self):
+        """Save LLM performance scores to backend/llm_performance_scores.json"""
+        scores_path = os.path.join(os.path.dirname(__file__), 'llm_performance_scores.json')
+        try:
+            with open(scores_path, 'w', encoding='utf-8') as f:
+                json.dump(self.llm_performance_scores, f, indent=2, ensure_ascii=False)
+            logger.info(f"Saved LLM performance scores to {scores_path}")
+        except Exception as e:
+            logger.error(f"Error saving LLM performance scores to {scores_path}: {str(e)}")
     
     def setup_openai(self, api_key: str):
         """Setup OpenAI client with API key"""
         if api_key:
             self.openai_client = openai.AsyncOpenAI(api_key=api_key)
     
+    def get_model_info(self, model_spec: str) -> Optional[Dict[str, Any]]:
+        """Retrieve detailed information about a model from the registry."""
+        provider, model_name = model_spec.split(":", 1)
+        
+        if provider == "ollama":
+            for model in self.llm_registry.get("ollama_models", []):
+                if model["name"] == model_name:
+                    return model
+        elif provider in ["openai", "claude"]: # Assuming claude models are listed under external
+            for model in self.llm_registry.get("external_models", []):
+                if model["name"] == model_spec: # External models use full spec as name
+                    return model
+        return None
+
+    def get_available_ollama_models_from_registry(self) -> List[Dict[str, Any]]:
+        """Get list of Ollama models from the registry."""
+        return self.llm_registry.get("ollama_models", [])
+
+    def get_available_external_models_from_registry(self) -> List[Dict[str, Any]]:
+        """Get list of external models from the registry."""
+        return self.llm_registry.get("external_models", [])
+
+    def get_model_performance(self, model_spec: str, task_type: str) -> Optional[float]:
+        """Get the performance score of a model for a specific task type."""
+        return self.llm_performance_scores.get(model_spec, {}).get(task_type)
+
+    def update_model_performance(self, model_spec: str, task_type: str, score: float):
+        """Update the performance score of a model for a specific task type."""
+        if model_spec not in self.llm_performance_scores:
+            self.llm_performance_scores[model_spec] = {}
+        self.llm_performance_scores[model_spec][task_type] = score
+        self.save_llm_performance_scores() # Persist scores immediately
+
     async def test_models(self, config: WorkflowConfig) -> Dict[str, TestResult]:
-        """Test all configured models"""
+        """Test all configured models and all models in the registry."""
         results = {}
         
         # Setup OpenAI if needed
@@ -33,17 +115,26 @@ class LLMManager:
         if config.ollama_url:
             self.ollama_base_url = config.ollama_url
         
-        # Test data generation model
+        # Test models specified in workflow config
         if config.data_generation_model:
             results["data_generation"] = await self._test_model(config.data_generation_model)
-        
-        # Test embedding model
         if config.embedding_model:
             results["embedding"] = await self._test_model(config.embedding_model)
-        
-        # Test reranking model if provided
         if config.reranking_model:
             results["reranking"] = await self._test_model(config.reranking_model)
+
+        # Test all Ollama models from the registry
+        for model_info in self.llm_registry.get("ollama_models", []):
+            model_spec = f"ollama:{model_info['name']}"
+            if model_spec not in results: # Avoid re-testing already tested models
+                results[model_spec] = await self._test_model(model_spec)
+        
+        # Test all external models from the registry if API keys are available
+        for model_info in self.llm_registry.get("external_models", []):
+            if model_info["name"].startswith("openai:") and config.openai_api_key:
+                if model_info["name"] not in results:
+                    results[model_info["name"]] = await self._test_model(model_info["name"])
+            # Add similar checks for Claude if its API key is managed
         
         return results
     
@@ -57,6 +148,8 @@ class LLMManager:
                 result = await self._test_openai_model(model_name)
             elif provider == "ollama":
                 result = await self._test_ollama_model(model_name)
+            elif provider == "claude": # Placeholder for Claude testing
+                result = TestResult(success=False, message="Claude testing not yet implemented.")
             else:
                 return TestResult(
                     success=False,
@@ -86,7 +179,11 @@ class LLMManager:
             )
         
         try:
-            if model_name.startswith("text-embedding"):
+            # Check if it's an embedding model based on common naming conventions or registry info
+            model_info = self.get_model_info(f"openai:{model_name}")
+            is_embedding_model = model_info and model_info.get("type") == "embedding" or "embedding" in model_name.lower()
+
+            if is_embedding_model:
                 # Test embedding model
                 response = await self.openai_client.embeddings.create(
                     model=model_name,
@@ -338,42 +435,69 @@ class LLMManager:
             logger.error(f"Error getting model config for {model_spec}: {str(e)}")
             return {}
     
-    async def generate_text(self, model_spec: str, prompt: str, config: WorkflowConfig) -> str:
-        """Generate text using specified model"""
+    async def generate_text(self, model_spec: str, prompt: str, config: WorkflowConfig, messages: Optional[List[Dict[str, Any]]] = None) -> str:
+        """Generate text using specified model, supporting chat messages."""
         try:
             provider, model_name = model_spec.split(":", 1)
             
+            if messages is None:
+                messages = [{"role": "user", "content": prompt}]
+            else:
+                # Ensure the prompt is added to messages if it's not already there
+                if not any(msg.get("content") == prompt for msg in messages):
+                    messages.append({"role": "user", "content": prompt})
+
             if provider == "openai":
                 if not self.openai_client:
                     self.setup_openai(config.openai_api_key)
                 
                 response = await self.openai_client.chat.completions.create(
                     model=model_name,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=messages,
                     max_tokens=1000
                 )
                 return response.choices[0].message.content
             
             elif provider == "ollama":
                 # Resolve the actual model name
-                actual_model_name = await self._resolve_ollama_model_name(model_name, config.ollama_url)
+                ollama_url = config.ollama_url if hasattr(config, 'ollama_url') else self.ollama_base_url
+                actual_model_name = await self._resolve_ollama_model_name(model_name, ollama_url)
                 
                 async with aiohttp.ClientSession() as session:
+                    # Convert messages to a single prompt for Ollama's /api/generate endpoint
+                    # Ollama's /api/generate endpoint primarily takes a single prompt string.
+                    # For chat-like interactions, we concatenate messages.
+                    combined_prompt = ""
+                    for msg in messages:
+                        role = msg.get("role", "user")
+                        content = msg.get("content", "")
+                        if role == "system":
+                            combined_prompt += f"System: {content}\n"
+                        elif role == "user":
+                            combined_prompt += f"User: {content}\n"
+                        elif role == "assistant":
+                            combined_prompt += f"Assistant: {content}\n"
+                    
                     payload = {
                         "model": actual_model_name,
-                        "prompt": prompt,
-                        "stream": False
+                        "prompt": combined_prompt.strip(),
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.7, # Default temperature
+                            "num_predict": 1000 # Default max tokens
+                        }
                     }
                     
                     async with session.post(
-                        f"{config.ollama_url}/api/generate",
+                        f"{ollama_url}/api/generate",
                         json=payload
                     ) as response:
                         if response.status == 200:
                             result = await response.json()
                             return result.get("response", "")
                         else:
-                            raise Exception(f"Ollama API error: {response.status}")
+                            error_text = await response.text()
+                            raise Exception(f"Ollama API error: {response.status} - {error_text}")
             
             else:
                 raise ValueError(f"Unknown provider: {provider}")
@@ -399,7 +523,8 @@ class LLMManager:
             
             elif provider == "ollama":
                 # Resolve the actual model name
-                actual_model_name = await self._resolve_ollama_model_name(model_name, config.ollama_url)
+                ollama_url = config.ollama_url if hasattr(config, 'ollama_url') else self.ollama_base_url
+                actual_model_name = await self._resolve_ollama_model_name(model_name, ollama_url)
                 
                 embeddings = []
                 async with aiohttp.ClientSession() as session:
@@ -410,7 +535,7 @@ class LLMManager:
                         }
                         
                         async with session.post(
-                            f"{config.ollama_url}/api/embeddings",
+                            f"{ollama_url}/api/embeddings",
                             json=payload
                         ) as response:
                             if response.status == 200:
@@ -528,7 +653,7 @@ class LLMManager:
             logger.error(f"Fallback completion also failed: {str(e)}")
             return "I apologize, but I'm having trouble processing your request."
 
-    async def generate_response(self, model_spec: str, prompt: str, config: Dict[str, Any]) -> str:
+    async def generate_response(self, model_spec: str, prompt: str, config: Dict[str, Any], messages: Optional[List[Dict[str, Any]]] = None) -> str:
         """Generate response using specified model (alias for generate_text with dict config)"""
         try:
             # Convert dict config to WorkflowConfig-like object for compatibility
@@ -539,7 +664,7 @@ class LLMManager:
                     self.ollama_base_url = self.ollama_url  # Add this attribute for compatibility
             
             config_obj = ConfigWrapper(config, self.ollama_base_url)
-            return await self.generate_text(model_spec, prompt, config_obj)
+            return await self.generate_text(model_spec, prompt, config_obj, messages)
             
         except Exception as e:
             logger.error(f"Error generating response with {model_spec}: {str(e)}")

@@ -1,0 +1,175 @@
+# LLM Registry: Defines available LLMs and their perceived strengths/weaknesses for dynamic selection.
+# This file will be read by the LLMManager and used by the CrewAI Manager Agent.
+
+ollama_models:
+  - name: "gemma3:27b"
+    type: "text_generation"
+    strengths:
+      - "Efficient performance on reasoning tasks"
+      - "Balances latency and output quality"
+    weaknesses:
+      - "Limited documentation compared to more mature models"
+      - "May lag behind in multilingual fluency"
+    cost: "local"
+    speed: "medium"
+
+  - name: "qwen3:32b"
+    type: "text_generation"
+    strengths:
+      - "Strong bilingual capabilities (especially English and Chinese)"
+      - "Capable of technical and code-related prompts"
+    weaknesses:
+      - "Could generate regionally biased responses"
+      - "Memory footprint may be high for lightweight setups"
+    cost: "local"
+    speed: "medium"
+
+  - name: "reflection:latest"
+    type: "text_generation"
+    strengths:
+      - "Great for self-reflective or instruction-following prompts"
+      - "Handles longer context windows well"
+    weaknesses:
+      - "Can be overly cautious in outputs"
+      - "Prompt sensitivity might require tuning"
+    cost: "local"
+    speed: "slow"
+
+  - name: "llama3.2:3b"
+    type: "text_generation"
+    strengths:
+      - "Fast response time and low resource usage"
+      - "Ideal for lightweight, local inference"
+    weaknesses:
+      - "Limited reasoning capacity"
+      - "Struggles with long or complex input chains"
+    cost: "local"
+    speed: "fast"
+
+  - name: "magistral:latest"
+    type: "text_generation"
+    strengths:
+      - "Fine-tuned for coding and developer workflows"
+      - "Good contextual memory within session"
+    weaknesses:
+      - "Not optimized for casual conversation"
+      - "Can hallucinate APIs or outdated syntax"
+    cost: "local"
+    speed: "medium"
+
+  - name: "phi4-reasoning:latest"
+    type: "text_generation"
+    strengths:
+      - "Built for structured reasoning tasks"
+      - "Handles logical inference scenarios effectively"
+    weaknesses:
+      - "May return overly rigid outputs"
+      - "Not designed for open-ended creativity"
+    cost: "local"
+    speed: "fast"
+
+  - name: "llama3.3:latest"
+    type: "text_generation"
+    strengths:
+      - "General purpose reasoning"
+      - "Good for conversational tasks"
+      - "Strong for creative text generation"
+    weaknesses:
+      - "May struggle with highly structured output without strong prompting"
+      - "Can be verbose"
+      # This model is currently used for data generation, so its weaknesses are critical.
+      # We will address these through prompt engineering and iterative refinement.
+    cost: "local"
+    speed: "medium"
+
+  - name: "deepseek-r1:70b"
+    type: "text_generation"
+    strengths:
+      - "Excellent code understanding and generation"
+      - "Strong performance in long-context tasks"
+    weaknesses:
+      - "High memory requirements"
+      - "Longer inference times on CPU-only systems"
+    cost: "local"
+    speed: "slow"
+
+  - name: "devstral:latest"
+    type: "text_generation"
+    strengths:
+      - "Developer-centric prompting and debugging support"
+      - "Useful for stack traces and technical errors"
+    weaknesses:
+      - "Might be niche for non-coding tasks"
+      - "Knowledge base may be narrow"
+    cost: "local"
+    speed: "medium"
+
+  - name: "mistral-small3.2:latest"
+    type: "text_generation"
+    strengths:
+      - "Efficient on local machines"
+      - "Decent performance for its size"
+    weaknesses:
+      - "Weaker at nuanced reasoning"
+      - "Shorter memory context"
+    cost: "local"
+    speed: "fast"
+
+  - name: "bge-m3:latest"
+    type: "embedding"
+    strengths:
+      - "Compact and lightweight"
+      - "Effective for retrieval tasks"
+    weaknesses:
+      - "Lower semantic resolution compared to larger embeddings"
+      - "Not suitable for generative tasks"
+    cost: "local"
+    speed: "fast"
+
+  - name: "llama4:latest"
+    type: "text_generation"
+    strengths:
+      - "Strong reasoning and multilingual support"
+      - "High output fluency"
+    weaknesses:
+      - "Memory-intensive"
+      - "Requires fine-tuning to avoid verbosity"
+    cost: "local"
+    speed: "medium"
+
+  - name: "snowflake-arctic-embed2:latest"
+    type: "embedding"
+    strengths:
+      - "Optimized for semantic similarity"
+      - "Great for document indexing and search"
+    weaknesses:
+      - "Less effective with non-English text"
+      - "Not a generative model"
+    cost: "local"
+    speed: "fast"
+
+external_models:
+  - name: "openai:gpt-4o"
+    type: "text_generation"
+    strengths:
+      - "State-of-the-art reasoning"
+      - "Highly capable for complex instructions and nuanced tasks"
+      - "Excellent for structured output"
+      - "Multimodal capabilities (vision, if integrated)"
+    weaknesses:
+      - "Monetary cost per token"
+      - "API dependency"
+    cost: "paid"
+    speed: "fast"
+
+  - name: "claude:sonnet"
+    type: "text_generation"
+    strengths:
+      - "Strong for long context windows"
+      - "Good for detailed explanations and summaries"
+      - "Reliable for complex analytical tasks"
+    weaknesses:
+      - "Monetary cost per token"
+      - "API dependency"
+    cost: "paid"
+    speed: "fast"

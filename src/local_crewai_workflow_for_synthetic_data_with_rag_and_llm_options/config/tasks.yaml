@@ -1,38 +1,57 @@
 ---
-upload_and_read_documents:
-  description: Allow users to upload PDFs, CSVs, or TXT files and read their contents
-    for processing.
-  expected_output: Document contents are successfully read and prepared for further
-    processing.
+process_documents_task:
+  description: Allow users to upload PDFs, CSVs, or TXT files and read their contents for processing by specialized agents.
+  expected_output: Document contents are successfully read and prepared as raw text for fact and concept extraction.
   async_execution: false
   agent: document_processor
-select_models:
-  description: Provide options for selecting LLMs for synthetic data generation, embedding,
-    and reranking.
-  expected_output: Selected LLMs for each task are documented and ready for use.
+
+extract_facts_task:
+  description: Extract all specific, verifiable facts, data points, and key statements from the processed document content, ensuring every truth is captured for the specialist LLM.
+  expected_output: A comprehensive list of structured facts extracted from the document, ready for Q&A generation.
   async_execution: false
-  agent: model_selector
-generate_synthetic_data_for_each_document:
-  description: Process each document individually to generate synthetic data in Alpaca
-    format, focusing on detailed Q&A generation.
-  expected_output: Synthetic data in Alpaca format is generated for each document,
-    with detailed Q&A specific to the document content.
-  async_execution: false
-  agent: data_generation
+  agent: fact_extractor
   context:
-  - upload_and_read_documents
-implement_rag_for_each_document:
-  description: Use the selected LLMs for embedding and reranking to enhance data quality
-    for each document.
-  expected_output: RAG capabilities are implemented for each document, improving data
-    quality through effective embedding and reranking.
+    - process_documents_task
+
+extract_concepts_task:
+  description: Identify and define all key concepts, topics, and important terms within the document content, including their relationships and domain.
+  expected_output: A comprehensive list of structured concepts extracted from the document, ready for Q&A generation.
   async_execution: false
-  agent: rag_implementation
+  agent: concept_extractor
   context:
-  - generate_synthetic_data_for_each_document
-optimize_performance:
-  description: Leverage NVIDIA frameworks to optimize the workflow for dual 4090 GPUs.
-  expected_output: Workflow is optimized for high-performance processing using NVIDIA
-    frameworks.
+    - process_documents_task
+
+generate_qa_pairs_task:
+  description: Generate diverse, high-quality, and non-repetitive instruction-input-output pairs in Alpaca format from extracted facts and concepts, engaging in iterative refinement with the Manager Agent.
+  expected_output: A set of high-quality Alpaca format Q&A pairs, refined through iterative feedback, ready for quality evaluation.
   async_execution: false
-  agent: optimization
+  agent: qa_generator
+  context:
+    - extract_facts_task
+    - extract_concepts_task
+
+evaluate_qa_quality_task:
+  description: Rigorously evaluate the quality of generated Q&A pairs, providing detailed feedback for iterative improvement and ensuring only the highest quality data is retained for training.
+  expected_output: Validated and filtered high-quality Alpaca Q&A pairs, with feedback provided for any rejected examples.
+  async_execution: false
+  agent: quality_evaluator
+  context:
+    - generate_qa_pairs_task
+
+run_llm_shootout_task:
+  description: Conduct a "shoot-out" evaluation of various LLMs on specific data generation tasks, score their performance, and record results for the Manager Agent's dynamic selection. This task can be initiated by the user to benchmark models.
+  expected_output: Performance scores for tested LLMs on various tasks, stored in the LLM performance registry for future reference by the Manager Agent.
+  async_execution: false
+  agent: llm_tester
+
+orchestrate_data_generation:
+  description: Orchestrate the entire synthetic data generation workflow, dynamically selecting LLMs, managing iterative refinement, and ensuring high-quality Alpaca training data is produced. This is the main task for the Manager Agent.
+  expected_output: A comprehensive, high-quality Alpaca format training dataset is generated, optimized through intelligent LLM selection and iterative refinement, ready for LLM training.
+  async_execution: false
+  agent: manager_agent
+  context:
+    - process_documents_task
+    - extract_facts_task
+    - extract_concepts_task
+    - generate_qa_pairs_task
+    - evaluate_qa_quality_task

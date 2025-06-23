@@ -1,0 +1,30 @@
+{
+  "id": "6d51d0d3-e5a8-4aed-a5a9-021d877db085",
+  "title": "CrewAI Workflow Results",
+  "description": "CrewAI workflow execution results for 1 documents",
+  "type": "crewai_workflow",
+  "data": {
+    "crew_result": "<think>\nOkay, I have this task about optimizing workflow for dual 4090 GPUs using NVIDIA frameworks. Let me break it down.\n\nFirst, what are dual 4090 GPUs? The NVIDIA RTX 4090 is a high-end graphics card. Having two of them means we're dealing with a multi-GPU setup, which can be used for parallel processing tasks, especially in machine learning and other compute-intensive applications.\n\nThe goal is to optimize the workflow using NVIDIA frameworks. NVIDIA provides several frameworks that are relevant here:\n1. **CUDA**: A parallel computing platform and API model that allows developers to use GPUs for general purpose processing (GPGPU).\n2. **cuDNN**: A GPU-accelerated library for deep neural networks.\n3. **NCCL**: A library for multi-GPU communication, useful in distributed training.\n4. **DALI**: A library for data loading and preprocessing to accelerate deep learning applications.\n5. **TensorRT**: For high-performance inference on NVIDIA GPUs.\n\nGiven that we have dual 4090s, some key considerations are:\n1. **Data Parallelism**: Split the workload across both GPUs. Each GPU processes a portion of the data independently and then results can be aggregated.\n2. **Model Parallelism**: If the model is too large to fit into one GPU's memory, it can be split across both GPUs. However, with 4090s having substantial VRAM (typically 24GB), this might not be necessary unless dealing with very large models.\n3. **Communication Overhead**: When using multiple GPUs, there's overhead in synchronizing data between them. NCCL can help minimize this by providing efficient multi-GPU communication routines.\n\nOptimization steps could include:\n1. **Batch Size Optimization**: Determine the optimal batch size that both GPUs can handle efficiently without causing memory issues or underutilization.\n2. **Data Loading and Preprocessing**: Use DALI to accelerate data loading and preprocessing, ensuring that the GPUs are not idle waiting for data.\n3. **Mixed Precision Training**: Utilize NVIDIA's AMP (Automatic Mixed Precision) to speed up computations by using FP16 where possible without losing accuracy.\n4. **Kernel Optimization**: Use CUDA kernels optimized for the specific workload, possibly leveraging libraries like cuDNN for deep learning tasks.\n5. **Multi-GPU Training Setup**: Properly configure the training script to utilize both GPUs effectively, which might involve setting environment variables like `CUDA_VISIBLE_DEVICES` and using PyTorch's `DataParallel` or `DistributedDataParallel` (the latter is generally preferred for better performance).\n\nFor inference:\n1. **Batch Processing**: Process multiple batches simultaneously on each GPU to maximize throughput.\n2. **Model Optimization with TensorRT**: Convert models into TensorRT-optimized formats for faster inference.\n\nBut before diving into specifics, I need more context about the workflow or application in question. However, since it's not provided, I'll assume a general machine learning training scenario, as that's a common use case for high-end GPUs like the 4090.\n\nHere’s a general approach to optimizing a workflow for dual 4090 GPUs:\n\n1. **Hardware Setup**: Ensure both GPUs are properly installed and detected by the system (using `nvidia-smi` command to check).\n2. **Software Setup**:\n   - Install necessary NVIDIA drivers, CUDA toolkit, and cuDNN libraries.\n   - For Python-based workflows, ensure you have proper versions of PyTorch or TensorFlow with CUDA support.\n3. **Data Preparation**:\n   - Use DALI for efficient data loading and preprocessing. This can significantly reduce the time spent waiting for data on the GPU.\n4. **Model Configuration**:\n   - If using PyTorch, wrap your model in `DistributedDataParallel` to utilize both GPUs effectively.\n   - Set up proper batch sizes considering the combined memory of both GPUs (but not exceeding individual GPU memory limits for certain operations).\n5. **Training Loop**:\n   - Implement distributed training with NCCL backend for efficient communication between GPUs.\n   - Monitor GPU utilization using `nvidia-smi` to ensure both GPUs are being utilized properly and there’s no bottleneck in data loading or computation.\n6. **Optimization Techniques**:\n   - Use mixed precision training via NVIDIA's AMP or similar libraries.\n   - Optimize the model architecture to fit well with the GPU capabilities (e.g., using layers that are efficiently parallelizable).\n7. **Monitoring and Profiling**:\n   - Continuously monitor performance metrics like FLOPS, memory usage, and communication overhead between GPUs.\n   - Use N",
+    "workflow_config": {
+      "data_generation_model": "ollama:magistral:latest",
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:phi4-reasoning:latest",
+      "openai_api_key": "",
+      "ollama_url": "http://host.docker.internal:11434",
+      "enable_gpu_optimization": true
+    },
+    "inputs": {
+      "documents": [
+        "uploads/4f783edc-cc4d-4fc5-8f28-c876bbe3dc4f.pdf"
+      ],
+      "workflow_type": "full",
+      "data_generation_model": "ollama:magistral:latest",
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:phi4-reasoning:latest",
+      "enable_gpu_optimization": true
+    },
+    "execution_timestamp": "2025-06-23T06:56:40.314153"
+  },
+  "created_at": "2025-06-23T06:56:40.314158",
+  "workflow_id": "be6d76df-7342-42c7-bae2-a367885a55d9"
+}

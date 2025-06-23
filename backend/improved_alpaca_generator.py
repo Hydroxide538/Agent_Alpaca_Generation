@@ -269,18 +269,46 @@ class ImprovedAlpacaGenerator:
                 Document section:
                 {chunk}
                 
-                Extract facts in this format:
-                FACT: [exact factual statement]
-                CONTEXT: [surrounding context]
-                TYPE: [numerical/procedural/causal/definitional/categorical]
-                CONFIDENCE: [high/medium/low]
-                ---
+                Please extract facts in JSON format, adhering to the following schema. Ensure all facts are included and are highly specific.
+                
+                JSON Schema for Facts:
+                [
+                    {{
+                        "content": "The exact factual statement.",
+                        "context": "The immediate context where it appears.",
+                        "fact_type": "numerical/procedural/causal/definitional/categorical/general",
+                        "confidence": "high/medium/low"
+                    }},
+                    // ... more facts
+                ]
+                
+                Example:
+                [
+                    {{
+                        "content": "The Earth's circumference at the equator is approximately 40,075 kilometers.",
+                        "context": "The document states, 'The Earth's circumference at the equator is approximately 40,075 kilometers, a key measurement in geodesy.'",
+                        "fact_type": "numerical",
+                        "confidence": "high"
+                    }},
+                    {{
+                        "content": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll.",
+                        "context": "In biology, photosynthesis is defined as the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll.",
+                        "fact_type": "definitional",
+                        "confidence": "high"
+                    }}
+                ]
                 """
                 
                 model_spec = config.get("data_generation_model", "")
                 response = await self.llm_manager.generate_response(model_spec, fact_extraction_prompt, config)
                 
-                chunk_facts = self._parse_structured_facts(response, doc_path, f"chunk_{i}")
+                try:
+                    chunk_facts_data = json.loads(response)
+                    chunk_facts = [ExtractedFact(**f) for f in chunk_facts_data]
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON facts from LLM response: {e}. Response: {response[:500]}")
+                    chunk_facts = [] # Fallback to empty list if JSON parsing fails
+                
                 facts.extend(chunk_facts)
             
             return facts
@@ -300,34 +328,59 @@ class ImprovedAlpacaGenerator:
             chunks = self._split_content_intelligently(content)
             concepts = []
             
-            for i, chunk in enumerate(chunks[:5]):  # Process first 5 chunks
+            for i, chunk in enumerate(chunks):  # Process all chunks, no hard limit
                 concept_extraction_prompt = f"""
-                Analyze this document section and identify key concepts, theories, methods, and important terms.
+                Analyze this document section and identify all key concepts, theories, methods, and important terms.
                 
-                For each concept, provide:
-                1. The concept name (be specific and precise)
-                2. A clear, concise definition
-                3. Concrete examples or applications mentioned
-                4. How it relates to other concepts in the text
-                5. What domain/field it belongs to
+                Please extract concepts in JSON format, adhering to the following schema. Ensure all relevant concepts are included.
+                
+                JSON Schema for Concepts:
+                [
+                    {{
+                        "name": "Specific concept name.",
+                        "definition": "A clear, concise definition.",
+                        "examples": ["Concrete example 1", "Concrete example 2"],
+                        "relationships": ["How it relates to other concepts in the text"],
+                        "domain": "Field/domain it belongs to",
+                        "confidence": "high/medium/low"
+                    }},
+                    // ... more concepts
+                ]
+                
+                Example:
+                [
+                    {{
+                        "name": "Quantum Entanglement",
+                        "definition": "A phenomenon where two or more particles become linked in such a way that they share the same fate, regardless of distance.",
+                        "examples": ["Bell test experiments", "Quantum cryptography"],
+                        "relationships": ["Related to quantum mechanics", "Contrasts with classical physics"],
+                        "domain": "Physics",
+                        "confidence": "high"
+                    }},
+                    {{
+                        "name": "Supply Chain Management",
+                        "definition": "The oversight of materials, information, and finances as they move in a process from supplier to manufacturer to wholesaler to retailer to consumer.",
+                        "examples": ["Just-in-time inventory", "Logistics optimization"],
+                        "relationships": ["Interacts with operations management", "Impacts business strategy"],
+                        "domain": "Business",
+                        "confidence": "high"
+                    }}
+                ]
                 
                 Document section:
                 {chunk}
-                
-                Extract concepts in this format:
-                CONCEPT: [specific concept name]
-                DEFINITION: [clear, concise definition]
-                EXAMPLES: [concrete examples from text]
-                RELATIONSHIPS: [how it relates to other concepts]
-                DOMAIN: [field/domain it belongs to]
-                CONFIDENCE: [high/medium/low]
-                ---
                 """
                 
                 model_spec = config.get("data_generation_model", "")
                 response = await self.llm_manager.generate_response(model_spec, concept_extraction_prompt, config)
                 
-                chunk_concepts = self._parse_structured_concepts(response, doc_path)
+                try:
+                    chunk_concepts_data = json.loads(response)
+                    chunk_concepts = [ExtractedConcept(**c) for c in chunk_concepts_data]
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON concepts from LLM response: {e}. Response: {response[:500]}")
+                    chunk_concepts = [] # Fallback to empty list if JSON parsing fails
+                
                 concepts.extend(chunk_concepts)
             
             return concepts
@@ -360,88 +413,93 @@ class ImprovedAlpacaGenerator:
         
         return chunks
     
+    def _extract_json_from_response(self, response: str) -> Optional[Dict[str, Any]]:
+        """Extracts a JSON object or list from a string, even with surrounding text or markdown."""
+        # Find the start of the JSON - either { or [
+        start_brace = response.find('{')
+        start_bracket = response.find('[')
+
+        if start_brace == -1 and start_bracket == -1:
+            return None
+
+        if start_brace == -1:
+            start = start_bracket
+        elif start_bracket == -1:
+            start = start_brace
+        else:
+            start = min(start_brace, start_bracket)
+
+        # Find the corresponding end of the JSON
+        if response[start] == '{':
+            end_char = '}'
+            level = 1
+        else:
+            end_char = ']'
+            level = 1
+        
+        end = -1
+        for i in range(start + 1, len(response)):
+            if response[i] == response[start]:
+                level += 1
+            elif response[i] == end_char:
+                level -= 1
+                if level == 0:
+                    end = i + 1
+                    break
+        
+        if end == -1:
+            return None
+
+        json_str = response[start:end]
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            return None
+
     def _parse_structured_facts(self, response: str, doc_path: str, location: str) -> List[ExtractedFact]:
-        """Parse structured fact extraction response"""
+        """Parse structured fact extraction response (now expects JSON)"""
         facts = []
         try:
-            fact_blocks = response.split('---')
-            
-            for block in fact_blocks:
-                if not block.strip():
-                    continue
-                
-                fact_data = {}
-                lines = block.strip().split('\n')
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('FACT:'):
-                        fact_data['content'] = line[5:].strip()
-                    elif line.startswith('CONTEXT:'):
-                        fact_data['context'] = line[8:].strip()
-                    elif line.startswith('TYPE:'):
-                        fact_data['fact_type'] = line[5:].strip()
-                    elif line.startswith('CONFIDENCE:'):
-                        confidence_str = line[11:].strip().lower()
-                        fact_data['confidence'] = {'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(confidence_str, 0.5)
-                
-                if 'content' in fact_data and len(fact_data['content']) > 10:
+            data = self._extract_json_from_response(response)
+            if not data or not isinstance(data, list):
+                logger.error(f"No valid JSON list found in fact extraction response: {response[:500]}")
+                return []
+
+            for item in data:
+                if isinstance(item, dict) and 'content' in item and len(item['content']) > 10:
                     fact = ExtractedFact(
-                        content=fact_data.get('content', ''),
-                        context=fact_data.get('context', ''),
-                        confidence=fact_data.get('confidence', 0.5),
+                        content=item.get('content', ''),
+                        context=item.get('context', ''),
+                        confidence={'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(str(item.get('confidence', 'medium')).lower(), 0.5),
                         source_location=f"{doc_path}:{location}",
-                        fact_type=fact_data.get('fact_type', 'general')
+                        fact_type=item.get('fact_type', 'general')
                     )
                     facts.append(fact)
-            
         except Exception as e:
             logger.error(f"Failed to parse structured facts: {str(e)}")
         
         return facts
     
     def _parse_structured_concepts(self, response: str, doc_path: str) -> List[ExtractedConcept]:
-        """Parse structured concept extraction response"""
+        """Parse structured concept extraction response (now expects JSON)"""
         concepts = []
         try:
-            concept_blocks = response.split('---')
-            
-            for block in concept_blocks:
-                if not block.strip():
-                    continue
-                
-                concept_data = {}
-                lines = block.strip().split('\n')
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('CONCEPT:'):
-                        concept_data['name'] = line[8:].strip()
-                    elif line.startswith('DEFINITION:'):
-                        concept_data['definition'] = line[11:].strip()
-                    elif line.startswith('EXAMPLES:'):
-                        examples_str = line[9:].strip()
-                        concept_data['examples'] = [ex.strip() for ex in examples_str.split(',') if ex.strip()]
-                    elif line.startswith('RELATIONSHIPS:'):
-                        relationships_str = line[14:].strip()
-                        concept_data['relationships'] = [rel.strip() for rel in relationships_str.split(',') if rel.strip()]
-                    elif line.startswith('DOMAIN:'):
-                        concept_data['domain'] = line[7:].strip()
-                    elif line.startswith('CONFIDENCE:'):
-                        confidence_str = line[11:].strip().lower()
-                        concept_data['confidence'] = {'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(confidence_str, 0.5)
-                
-                if 'name' in concept_data and 'definition' in concept_data:
+            data = self._extract_json_from_response(response)
+            if not data or not isinstance(data, list):
+                logger.error(f"No valid JSON list found in concept extraction response: {response[:500]}")
+                return []
+
+            for item in data:
+                if isinstance(item, dict) and 'name' in item and 'definition' in item:
                     concept = ExtractedConcept(
-                        name=concept_data.get('name', ''),
-                        definition=concept_data.get('definition', ''),
-                        examples=concept_data.get('examples', []),
-                        relationships=concept_data.get('relationships', []),
-                        domain=concept_data.get('domain', 'general'),
-                        confidence=concept_data.get('confidence', 0.5)
+                        name=item.get('name', ''),
+                        definition=item.get('definition', ''),
+                        examples=item.get('examples', []),
+                        relationships=item.get('relationships', []),
+                        domain=item.get('domain', 'general'),
+                        confidence={'high': 0.9, 'medium': 0.7, 'low': 0.5}.get(str(item.get('confidence', 'medium')).lower(), 0.5)
                     )
                     concepts.append(concept)
-            
         except Exception as e:
             logger.error(f"Failed to parse structured concepts: {str(e)}")
         
@@ -454,7 +512,7 @@ class ImprovedAlpacaGenerator:
         # Select high-confidence facts
         high_quality_facts = [f for f in facts if f.confidence >= 0.7]
         
-        for fact in high_quality_facts[:25]:  # Limit to best facts
+        for fact in high_quality_facts:  # Removed hard limit
             try:
                 # Choose appropriate template based on fact type
                 if fact.fact_type == 'numerical':
@@ -464,50 +522,35 @@ class ImprovedAlpacaGenerator:
                 
                 # Generate natural question
                 question_prompt = f"""
-                Create a natural, specific question that can be answered using this factual information:
+                Create a natural, specific question that can be answered using this factual information.
+                The question should be clear, specific, sound natural, be answerable with the given information, and test understanding of the fact.
                 
-                Fact: {fact.content}
-                Context: {fact.context}
+                Fact: "{fact.content}"
+                Context: "{fact.context}"
                 
-                The question should:
-                - Be clear and specific
-                - Sound natural (not template-like)
-                - Be answerable with the given information
-                - Test understanding of the fact
+                Example Question: "What is the capital of France?"
+                Example Answer: "The capital of France is Paris."
                 
                 Generate only the question, nothing else.
                 """
                 
                 model_spec = config.get("data_generation_model", "")
-                question = await self.llm_manager.generate_response(model_spec, question_prompt, config)
-                question = self._clean_response(question)
+                question, answer = await self._generate_qa_with_retries(model_spec, question_prompt, f"""
+                Answer this question comprehensively using the provided information.
+                The answer should directly answer the question, use the factual information provided, include relevant context, and be well-structured and complete.
+                Do not include disclaimers or meta-commentary.
                 
-                if not self._is_valid_instruction(question):
-                    continue
-                
-                # Generate comprehensive answer
-                answer_prompt = f"""
-                Answer this question comprehensively using the provided information:
-                
-                Question: {question}
+                Question: {{question}}
                 
                 Available information:
                 - Fact: {fact.content}
                 - Context: {fact.context}
                 
-                Provide a clear, informative answer that:
-                - Directly answers the question
-                - Uses the factual information provided
-                - Includes relevant context
-                - Is well-structured and complete
-                
-                Do not include disclaimers or meta-commentary.
-                """
-                
-                answer = await self.llm_manager.generate_response(model_spec, answer_prompt, config)
-                answer = self._clean_response(answer)
-                
-                if self._is_valid_output(answer):
+                Example Question: "What is the capital of France?"
+                Example Answer: "The capital of France is Paris, a major European city known for its art and culture."
+                """, config)
+
+                if question and answer:
                     qa_pairs.append({
                         "instruction": question,
                         "input": "",
@@ -527,31 +570,27 @@ class ImprovedAlpacaGenerator:
         # Select high-confidence concepts
         high_quality_concepts = [c for c in concepts if c.confidence >= 0.7]
         
-        for concept in high_quality_concepts[:20]:
+        for concept in high_quality_concepts: # Removed hard limit
             try:
                 # Generate definition question
                 question_prompt = f"""
-                Create a natural question asking for an explanation of this concept:
+                Create a natural question asking for an explanation of this concept.
+                The question should sound natural and conversational, not template-like.
+                Generate only the question.
                 
                 Concept: {concept.name}
                 Domain: {concept.domain}
                 
-                The question should sound natural and conversational, not template-like.
-                Generate only the question.
+                Example Question: "Can you explain the concept of 'Photosynthesis'?"
                 """
                 
                 model_spec = config.get("data_generation_model", "")
-                question = await self.llm_manager.generate_response(model_spec, question_prompt, config)
-                question = self._clean_response(question)
+                question, answer = await self._generate_qa_with_retries(model_spec, question_prompt, f"""
+                Provide a comprehensive explanation of this concept.
+                Your answer should clearly explain what the concept is, provide context and background, include examples if available, explain its significance or applications, and be informative and well-structured.
+                Do not include disclaimers or meta-commentary.
                 
-                if not self._is_valid_instruction(question):
-                    continue
-                
-                # Generate comprehensive answer
-                answer_prompt = f"""
-                Provide a comprehensive explanation of this concept:
-                
-                Question: {question}
+                Question: {{question}}
                 
                 Concept information:
                 - Name: {concept.name}
@@ -559,20 +598,10 @@ class ImprovedAlpacaGenerator:
                 - Examples: {', '.join(concept.examples) if concept.examples else 'None provided'}
                 - Domain: {concept.domain}
                 
-                Your answer should:
-                - Clearly explain what the concept is
-                - Provide context and background
-                - Include examples if available
-                - Explain its significance or applications
-                - Be informative and well-structured
-                
-                Do not include disclaimers or meta-commentary.
-                """
-                
-                answer = await self.llm_manager.generate_response(model_spec, answer_prompt, config)
-                answer = self._clean_response(answer)
-                
-                if self._is_valid_output(answer):
+                Example Answer: "Photosynthesis is the process used by plants, algae and certain bacteria to turn sunlight into chemical energy. This energy is then used to fuel the organism's activities. It is a vital process for life on Earth as it produces oxygen as a byproduct."
+                """, config)
+
+                if question and answer:
                     qa_pairs.append({
                         "instruction": question,
                         "input": "",
@@ -592,8 +621,8 @@ class ImprovedAlpacaGenerator:
         high_quality_concepts = [c for c in concepts if c.confidence >= 0.7]
         
         # Generate comparison questions between related concepts
-        for i in range(min(10, len(high_quality_concepts))):
-            for j in range(i + 1, min(i + 3, len(high_quality_concepts))):
+        for i in range(len(high_quality_concepts)): # Removed hard limit
+            for j in range(i + 1, len(high_quality_concepts)): # Removed hard limit
                 try:
                     concept1 = high_quality_concepts[i]
                     concept2 = high_quality_concepts[j]
@@ -603,31 +632,23 @@ class ImprovedAlpacaGenerator:
                         continue
                     
                     question_prompt = f"""
-                    Create a thoughtful analytical question that compares or relates these two concepts:
+                    Create a thoughtful analytical question that compares or relates these two concepts.
+                    The question should ask for analysis or comparison, be intellectually engaging, and sound natural and conversational.
+                    Generate only the question.
                     
                     Concept 1: {concept1.name}
                     Concept 2: {concept2.name}
                     
-                    The question should:
-                    - Ask for analysis or comparison
-                    - Be intellectually engaging
-                    - Sound natural and conversational
-                    
-                    Generate only the question.
+                    Example Question: "Compare and contrast 'Artificial Intelligence' and 'Machine Learning'."
                     """
                     
                     model_spec = config.get("data_generation_model", "")
-                    question = await self.llm_manager.generate_response(model_spec, question_prompt, config)
-                    question = self._clean_response(question)
+                    question, answer = await self._generate_qa_with_retries(model_spec, question_prompt, f"""
+                    Provide a thoughtful analytical answer to this question.
+                    Your answer should compare and contrast the concepts, analyze their relationships, discuss similarities and differences, provide insights and implications, and be well-structured and analytical.
+                    Do not include disclaimers or meta-commentary.
                     
-                    if not self._is_valid_instruction(question):
-                        continue
-                    
-                    # Generate analytical answer
-                    answer_prompt = f"""
-                    Provide a thoughtful analytical answer to this question:
-                    
-                    Question: {question}
+                    Question: {{question}}
                     
                     Concept 1: {concept1.name}
                     - Definition: {concept1.definition}
@@ -637,20 +658,10 @@ class ImprovedAlpacaGenerator:
                     - Definition: {concept2.definition}
                     - Examples: {', '.join(concept2.examples) if concept2.examples else 'None'}
                     
-                    Your answer should:
-                    - Compare and contrast the concepts
-                    - Analyze their relationships
-                    - Discuss similarities and differences
-                    - Provide insights and implications
-                    - Be well-structured and analytical
-                    
-                    Do not include disclaimers or meta-commentary.
-                    """
-                    
-                    answer = await self.llm_manager.generate_response(model_spec, answer_prompt, config)
-                    answer = self._clean_response(answer)
-                    
-                    if self._is_valid_output(answer):
+                    Example Answer: "Artificial Intelligence (AI) is a broad field focused on creating machines that can perform tasks requiring human intelligence, while Machine Learning (ML) is a subset of AI that enables systems to learn from data without explicit programming. ML is a method to achieve AI."
+                    """, config)
+
+                    if question and answer:
                         qa_pairs.append({
                             "instruction": question,
                             "input": "",
@@ -669,55 +680,37 @@ class ImprovedAlpacaGenerator:
         
         high_quality_concepts = [c for c in concepts if c.confidence >= 0.7 and c.examples]
         
-        for concept in high_quality_concepts[:15]:
+        for concept in high_quality_concepts: # Removed hard limit
             try:
                 question_prompt = f"""
-                Create a practical question about real-world applications of this concept:
+                Create a practical question about real-world applications of this concept.
+                The question should ask about practical applications or use cases, be relevant to the concept's domain, and sound natural and engaging.
+                Generate only the question.
                 
                 Concept: {concept.name}
                 Domain: {concept.domain}
                 Examples: {', '.join(concept.examples)}
                 
-                The question should:
-                - Ask about practical applications or use cases
-                - Be relevant to the concept's domain
-                - Sound natural and engaging
-                
-                Generate only the question.
+                Example Question: "How is 'Blockchain' applied in finance?"
                 """
                 
                 model_spec = config.get("data_generation_model", "")
-                question = await self.llm_manager.generate_response(model_spec, question_prompt, config)
-                question = self._clean_response(question)
+                question, answer = await self._generate_qa_with_retries(model_spec, question_prompt, f"""
+                Provide a practical, informative answer about applications.
+                Your answer should explain practical applications and use cases, provide concrete examples, discuss benefits and implementation, be actionable and informative, and connect theory to practice.
+                Do not include disclaimers or meta-commentary.
                 
-                if not self._is_valid_instruction(question):
-                    continue
-                
-                # Generate practical answer
-                answer_prompt = f"""
-                Provide a practical, informative answer about applications:
-                
-                Question: {question}
+                Question: {{question}}
                 
                 Concept: {concept.name}
                 Definition: {concept.definition}
                 Examples: {', '.join(concept.examples)}
                 Domain: {concept.domain}
                 
-                Your answer should:
-                - Explain practical applications and use cases
-                - Provide concrete examples
-                - Discuss benefits and implementation
-                - Be actionable and informative
-                - Connect theory to practice
-                
-                Do not include disclaimers or meta-commentary.
-                """
-                
-                answer = await self.llm_manager.generate_response(model_spec, answer_prompt, config)
-                answer = self._clean_response(answer)
-                
-                if self._is_valid_output(answer):
+                Example Answer: "Blockchain is applied in finance for secure and transparent transactions, such as in cryptocurrencies like Bitcoin, and for smart contracts that automate agreements without intermediaries."
+                """, config)
+
+                if question and answer:
                     qa_pairs.append({
                         "instruction": question,
                         "input": "",
@@ -745,12 +738,13 @@ class ImprovedAlpacaGenerator:
             "How do the different sections or topics relate to each other?"
         ]
         
-        for question in document_questions[:6]:  # Limit to avoid too many
+        for question in document_questions:  # Removed hard limit
             try:
                 # Use RAG to get relevant context
                 relevant_chunks = await self.rag_system.retrieve_relevant_chunks(question, top_k=5)
                 
                 if not relevant_chunks:
+                    logger.debug(f"Document Q&A: No relevant chunks found for question: {question}")
                     continue
                 
                 # Combine and clean context
@@ -761,45 +755,96 @@ class ImprovedAlpacaGenerator:
                         context_texts.append(text)
                 
                 if not context_texts:
+                    logger.debug(f"Document Q&A: No substantial context texts found for question: {question}")
                     continue
                 
-                combined_context = "\n\n".join(context_texts[:3])  # Use top 3 chunks
+                combined_context = "\n\n".join(context_texts) # Use all relevant chunks
                 
                 # Generate comprehensive answer
                 answer_prompt = f"""
-                Answer this question based on the provided document information:
+                Answer this question based on the provided document information.
+                Your answer should directly address the question, use specific information from the documents, be organized and easy to follow, include relevant details and examples, and synthesize information effectively.
+                Do not include disclaimers or meta-commentary.
                 
                 Question: {question}
                 
                 Document information:
                 {combined_context}
                 
-                Provide a comprehensive, well-structured answer that:
-                - Directly addresses the question
-                - Uses specific information from the documents
-                - Is organized and easy to follow
-                - Includes relevant details and examples
-                - Synthesizes information effectively
-                
-                Do not include disclaimers or meta-commentary.
+                Example Question: "Summarize the key findings from the document."
+                Example Answer: "The document's key findings indicate a significant correlation between X and Y, suggesting a novel approach to Z, as evidenced by the experimental data presented in Section 3.2."
                 """
                 
                 model_spec = config.get("data_generation_model", "")
+                # For document-level questions, we can use a simplified retry logic as it's less about refining a specific fact
+                # and more about summarizing broader context.
                 answer = await self.llm_manager.generate_response(model_spec, answer_prompt, config)
                 answer = self._clean_response(answer)
                 
                 if self._is_valid_output(answer):
                     qa_pairs.append({
                         "instruction": question,
-                        "input": "Based on the provided document",
+                        "input": "Based on the provided documents",
                         "output": answer
                     })
+                else:
+                    logger.debug(f"Document Q&A: Output '{answer}' failed validation for instruction '{question}'.")
                 
             except Exception as e:
                 logger.error(f"Failed to generate document Q&A: {str(e)}")
                 continue
         
         return qa_pairs
+    
+    async def _generate_qa_with_retries(self, model_spec: str, question_prompt: str, answer_prompt: str, config: Dict[str, Any], max_retries: int = 2) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Generates Q&A with retries and iterative refinement.
+        Returns (question, answer) or (None, None) if unsuccessful.
+        """
+        question = None
+        answer = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Generate question
+                current_question_prompt = question_prompt
+                if question: # If re-attempting, provide previous question for context
+                    current_question_prompt += f"\n\nPrevious attempt's question: {question}"
+                
+                question = await self.llm_manager.generate_response(model_spec, current_question_prompt, config)
+                question = self._clean_response(question)
+                
+                if not self._is_valid_instruction(question):
+                    logger.debug(f"Attempt {attempt+1}: Instruction '{question}' failed validation. Retrying...")
+                    continue # Try again
+                
+                # Generate answer
+                current_answer_prompt = answer_prompt
+                if answer: # If re-attempting, provide previous answer for context
+                    current_answer_prompt += f"\n\nPrevious attempt's answer: {answer}"
+                
+                answer = await self.llm_manager.generate_response(model_spec, current_answer_prompt, config)
+                answer = self._clean_response(answer)
+                
+                if self._is_valid_output(answer):
+                    return question, answer # Success
+                else:
+                    logger.debug(f"Attempt {attempt+1}: Output '{answer}' failed validation for instruction '{question}'. Retrying...")
+                    # Provide feedback to the LLM for the next attempt
+                    feedback_prompt = f"The previous answer was not satisfactory. It failed the following quality checks: "
+                    if not self._is_valid_output(answer):
+                        feedback_prompt += "Output is too short or too long, or contains forbidden phrases, or is too repetitive. "
+                    # Add more specific feedback based on _is_valid_output checks if needed
+                    
+                    question_prompt += f"\n\nManager feedback for next attempt: {feedback_prompt} Please improve the quality of the generated question."
+                    answer_prompt += f"\n\nManager feedback for next attempt: {feedback_prompt} Please improve the quality of the generated answer."
+                    
+            except Exception as e:
+                logger.error(f"Error during Q&A generation attempt {attempt+1}: {str(e)}")
+                question, answer = None, None # Reset for next attempt
+                
+        logger.warning(f"Failed to generate valid Q&A after {max_retries+1} attempts for fact/concept.")
+        return None, None # Failed after all retries
     
     def _clean_response(self, response: str) -> str:
         """Clean and normalize LLM response"""
@@ -824,17 +869,20 @@ class ImprovedAlpacaGenerator:
     def _is_valid_instruction(self, instruction: str) -> bool:
         """Check if instruction meets quality criteria"""
         if not instruction or len(instruction) < self.quality_filters["min_instruction_length"]:
+            logger.debug(f"Instruction '{instruction}' failed: too short ({len(instruction)} < {self.quality_filters['min_instruction_length']})")
             return False
         
         # Check for forbidden phrases
         instruction_lower = instruction.lower()
         for phrase in self.quality_filters["forbidden_phrases"]:
             if phrase.lower() in instruction_lower:
+                logger.debug(f"Instruction '{instruction}' failed: contains forbidden phrase '{phrase}'")
                 return False
         
         # Check if it's actually a question or instruction
         if not (instruction.endswith('?') or any(word in instruction_lower for word in 
                 ['what', 'how', 'why', 'when', 'where', 'explain', 'describe', 'define', 'analyze', 'compare'])):
+            logger.debug(f"Instruction '{instruction}' failed: not a question/instruction.")
             return False
         
         return True
@@ -842,27 +890,35 @@ class ImprovedAlpacaGenerator:
     def _is_valid_output(self, output: str) -> bool:
         """Check if output meets quality criteria"""
         if not output:
+            logger.debug("Output failed: empty.")
             return False
         
         output_len = len(output)
-        if output_len < self.quality_filters["min_output_length"] or output_len > self.quality_filters["max_output_length"]:
+        if output_len < self.quality_filters["min_output_length"]:
+            logger.debug(f"Output '{output}' failed: too short ({output_len} < {self.quality_filters['min_output_length']})")
+            return False
+        if output_len > self.quality_filters["max_output_length"]:
+            logger.debug(f"Output '{output}' failed: too long ({output_len} > {self.quality_filters['max_output_length']})")
             return False
         
         # Check for forbidden phrases
         output_lower = output.lower()
         for phrase in self.quality_filters["forbidden_phrases"]:
             if phrase.lower() in output_lower:
+                logger.debug(f"Output '{output}' failed: contains forbidden phrase '{phrase}'")
                 return False
         
         # Check content quality - should not be mostly repetitive
         words = output.split()
         if len(words) < 10:
+            logger.debug(f"Output '{output}' failed: too few words ({len(words)} < 10).")
             return False
         
         # Check for excessive repetition
         unique_words = set(words)
         repetition_ratio = 1 - (len(unique_words) / len(words))
         if repetition_ratio > self.quality_filters["max_repetition_ratio"]:
+            logger.debug(f"Output '{output}' failed: excessive repetition ({repetition_ratio:.2f} > {self.quality_filters['max_repetition_ratio']}).")
             return False
         
         return True
@@ -878,14 +934,18 @@ class ImprovedAlpacaGenerator:
                 
                 # Apply validation checks
                 if not self._is_valid_instruction(instruction):
+                    logger.debug(f"Example filtered (instruction invalid): {instruction}")
                     continue
                 
                 if not self._is_valid_output(output):
+                    logger.debug(f"Example filtered (output invalid): {output}")
                     continue
                 
                 # Additional quality checks
                 if self._is_high_quality_pair(instruction, output):
                     high_quality_data.append(example)
+                else:
+                    logger.debug(f"Example filtered (high quality pair check failed): Instruction: '{instruction}', Output: '{output}'")
                 
             except Exception as e:
                 logger.error(f"Error in quality filtering: {str(e)}")
@@ -904,13 +964,12 @@ class ImprovedAlpacaGenerator:
         overlap_ratio = overlap / len(instruction_words) if instruction_words else 0
         
         # Good answers have some overlap (0.1-0.7) but aren't just repetitions
-        if overlap_ratio < 0.1 or overlap_ratio > 0.7:
+        # Removed upper bound to allow direct factual answers
+        if overlap_ratio < 0.1:
+            logger.debug(f"High quality pair check failed: low overlap ratio ({overlap_ratio:.2f} < 0.1). Instruction: '{instruction}', Output: '{output}'")
             return False
         
-        # Check if output is substantive
-        sentences = output.split('.')
-        if len(sentences) < 2:  # Should have at least 2 sentences
-            return False
+        # Removed sentence count check to allow valid single-sentence answers
         
         return True
     
@@ -925,10 +984,10 @@ class ImprovedAlpacaGenerator:
         # Shuffle for diversity
         random.shuffle(unique_data)
         
-        # Limit total size to prevent overwhelming datasets
-        max_examples = 100  # Reasonable limit for quality over quantity
-        if len(unique_data) > max_examples:
-            unique_data = unique_data[:max_examples]
+        # Removed hard limit on total size to ensure all quality data is kept
+        # max_examples = 100  # Reasonable limit for quality over quantity
+        # if len(unique_data) > max_examples:
+        #     unique_data = unique_data[:max_examples]
         
         return unique_data
     
@@ -947,6 +1006,7 @@ class ImprovedAlpacaGenerator:
             output_key = self._normalize_text_for_comparison(output)
             
             if instruction_key in seen_instructions or output_key in seen_outputs:
+                logger.debug(f"Duplicate example removed: Instruction: '{instruction}', Output: '{output}'")
                 continue
             
             seen_instructions.add(instruction_key)
@@ -964,7 +1024,7 @@ class ImprovedAlpacaGenerator:
         # Take first 50 characters for comparison
         return normalized[:50]
     
-    def _calculate_quality_metrics(self, alpaca_data: List[Dict[str, str]]) -> Dict[str, Any]:
+    def _calculate_quality_metrics(self, alpaca_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate quality metrics for the dataset"""
         if not alpaca_data:
             return {}
@@ -981,14 +1041,14 @@ class ImprovedAlpacaGenerator:
         
         return {
             "total_examples": total_examples,
-            "avg_instruction_length": sum(instruction_lengths) / len(instruction_lengths),
-            "avg_output_length": sum(output_lengths) / len(output_lengths),
-            "instruction_diversity": unique_instructions / total_examples,
-            "output_diversity": unique_outputs / total_examples,
-            "min_instruction_length": min(instruction_lengths),
-            "max_instruction_length": max(instruction_lengths),
-            "min_output_length": min(output_lengths),
-            "max_output_length": max(output_lengths)
+            "avg_instruction_length": sum(instruction_lengths) / total_examples if total_examples > 0 else 0,
+            "avg_output_length": sum(output_lengths) / total_examples if total_examples > 0 else 0,
+            "instruction_diversity": unique_instructions / total_examples if total_examples > 0 else 0,
+            "output_diversity": unique_outputs / total_examples if total_examples > 0 else 0,
+            "min_instruction_length": min(instruction_lengths) if instruction_lengths else 0,
+            "max_instruction_length": max(instruction_lengths) if instruction_lengths else 0,
+            "min_output_length": min(output_lengths) if output_lengths else 0,
+            "max_output_length": max(output_lengths) if output_lengths else 0
         }
     
     def _read_document_content(self, doc_path: str) -> str:

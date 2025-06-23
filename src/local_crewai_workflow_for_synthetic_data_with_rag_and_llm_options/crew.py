@@ -7,41 +7,22 @@ from crewai_tools import TXTSearchTool
 from typing import Optional, Dict, Any
 import os
 import sys
+import os
+import json
+import yaml
+from crewai import Agent, Crew, Process, Task, LLM
+from crewai.project import CrewBase, agent, crew, task
+from crewai_tools import FileReadTool, PDFSearchTool, CSVSearchTool, TXTSearchTool
+from typing import Optional, Dict, Any, List
 
-# Add backend directory to path for safe LLM wrapper
+# Add backend directory to path for safe LLM wrapper and LLMManager
 backend_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'backend')
 if backend_path not in sys.path:
     sys.path.append(backend_path)
 
-# Try multiple import strategies for different execution contexts
-SafeLLMFactory = None
-CrewAICompatibleLLM = None
-
-try:
-    # Try importing from backend module
-    from backend import SafeLLMFactory, CrewAICompatibleLLM
-    print("Successfully imported safe LLM wrapper from backend module")
-except ImportError:
-    try:
-        # Try direct import
-        from safe_llm_wrapper import SafeLLMFactory, CrewAICompatibleLLM
-        print("Successfully imported safe LLM wrapper directly")
-    except ImportError:
-        try:
-            # Fallback import using importlib
-            import importlib.util
-            safe_llm_path = os.path.join(backend_path, 'safe_llm_wrapper.py')
-            spec = importlib.util.spec_from_file_location("safe_llm_wrapper", safe_llm_path)
-            safe_llm_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(safe_llm_module)
-            SafeLLMFactory = safe_llm_module.SafeLLMFactory
-            CrewAICompatibleLLM = safe_llm_module.CrewAICompatibleLLM
-            print("Successfully imported safe LLM wrapper using importlib fallback")
-        except Exception as e:
-            print(f"Failed to import safe LLM wrapper: {str(e)}")
-            print("Will use standard LLM for all models (may cause 'list index out of range' error)")
-            SafeLLMFactory = None
-            CrewAICompatibleLLM = None
+# Import LLMManager and SafeLLMFactory
+from backend.llm_manager import LLMManager
+from backend.safe_llm_wrapper import CrewAICompatibleLLM
 
 @CrewBase
 class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
@@ -50,242 +31,199 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__()
         self.workflow_config = config or {}
+        self.llm_manager = LLMManager() # Initialize LLMManager
         self._setup_llms()
     
     def _setup_llms(self):
-        """Setup LLMs based on configuration"""
-        self.data_generation_llm = None
-        self.embedding_llm = None
-        self.reranking_llm = None
+        """Setup LLMs based on configuration and LLMManager"""
+        # The Manager Agent's LLM is explicitly set by the user config
+        manager_model_spec = self.workflow_config.get('manager_model', 'ollama:llama3.3:latest')
+        self.manager_llm = self._create_llm_from_spec(manager_model_spec, self.workflow_config)
         
-        if self.workflow_config:
-            # Setup data generation LLM
-            if self.workflow_config.get('data_generation_model'):
-                self.data_generation_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-            
-            # Setup embedding LLM
-            if self.workflow_config.get('embedding_model'):
-                self.embedding_llm = self._create_llm(
-                    self.workflow_config['embedding_model'],
-                    self.workflow_config
-                )
-            
-            # Setup reranking LLM
-            if self.workflow_config.get('reranking_model'):
-                self.reranking_llm = self._create_llm(
-                    self.workflow_config['reranking_model'],
-                    self.workflow_config
-                )
-    
-    def _create_llm(self, model_spec: str, config: Dict[str, Any]):
-        """Create LLM instance based on model specification with enhanced error handling and safe wrapper"""
+        # Worker LLMs will be dynamically selected by the Manager Agent,
+        # but we need a default for agents that might not be managed initially
+        self.default_worker_llm = self._create_llm_from_spec(
+            self.workflow_config.get('data_generation_model', 'ollama:llama3.3:latest'),
+            self.workflow_config
+        )
+        
+        # Embedding and Reranking LLMs are still directly configured for RAG system
+        embedding_model_spec = self.workflow_config.get('embedding_model')
+        self.embedding_llm = self._create_llm_from_spec(embedding_model_spec, self.workflow_config) if embedding_model_spec else None
+        
+        reranking_model_spec = self.workflow_config.get('reranking_model')
+        self.reranking_llm = self._create_llm_from_spec(reranking_model_spec, self.workflow_config) if reranking_model_spec else None
+
+    def _create_llm_from_spec(self, model_spec: str, config: Dict[str, Any]):
+        """Create CrewAI LLM instance from a model specification using CrewAICompatibleLLM."""
         try:
             provider, model_name = model_spec.split(":", 1)
             
             if provider == "ollama":
-                # Use safe LLM wrapper for Ollama models to prevent "list index out of range" errors
-                if CrewAICompatibleLLM is not None:
-                    print(f"Creating safe LLM wrapper for Ollama model: {model_spec}")
-                    safe_llm = CrewAICompatibleLLM(model_spec, config)
-                    print(f"Safe LLM wrapper created successfully for {model_spec}")
-                    return safe_llm
-                else:
-                    print(f"Warning: Safe LLM wrapper not available, using standard LLM for {model_spec}")
-                    print("This may cause 'list index out of range' errors")
-                    ollama_url = config.get('ollama_url', 'http://host.docker.internal:11434')
-                    return LLM(
-                        model=f"ollama/{model_name}",
-                        base_url=ollama_url
-                    )
+                ollama_url = config.get('ollama_url', 'http://host.docker.internal:11434')
+                return CrewAICompatibleLLM(model_spec, config)
             elif provider == "openai":
-                # For OpenAI, use standard LLM as it doesn't have the same issues
                 api_key = config.get('openai_api_key')
                 if not api_key:
                     raise ValueError(f"OpenAI API key is required for model {model_spec}")
-                print(f"Creating standard LLM for OpenAI model: {model_spec}")
-                return LLM(
-                    model=f"openai/{model_name}",
-                    api_key=api_key
-                )
+                return CrewAICompatibleLLM(model_spec, config) # Use wrapper for consistency
+            elif provider == "claude": # Placeholder for Claude
+                api_key = config.get('claude_api_key') # Assuming a claude_api_key in config
+                if not api_key:
+                    raise ValueError(f"Claude API key is required for model {model_spec}")
+                return CrewAICompatibleLLM(model_spec, config) # Use wrapper for consistency
             else:
                 raise ValueError(f"Unknown provider: {provider}")
         except Exception as e:
             print(f"Error creating LLM for {model_spec}: {str(e)}")
-            # For Ollama models, we should not fail if there's no OpenAI key
-            if "openai" not in model_spec.lower():
-                print(f"Continuing without LLM for {model_spec} - this may cause issues")
             return None
 
     @agent
+    def manager_agent(self) -> Agent:
+        """The Manager Agent orchestrates the workflow and selects LLMs."""
+        agent_config = self.agents_config['manager_agent'].copy()
+        return Agent(
+            config=agent_config,
+            llm=self.manager_llm, # Manager's LLM is explicitly set
+            tools=[], # Manager will use internal logic to select LLMs, not external tools for this
+            verbose=True,
+            allow_delegation=True, # Manager can delegate tasks
+        )
+
+    @agent
     def document_processor(self) -> Agent:
-        # Use basic file tools that don't require embeddings to avoid OpenAI dependency
+        """Agent responsible for processing documents and extracting raw content."""
         basic_tools = [FileReadTool()]
-        
-        # Only add advanced search tools if we have proper embedding configuration
         if self.embedding_llm is not None:
             try:
-                # Try to add search tools, but catch any OpenAI dependency errors
                 basic_tools.extend([PDFSearchTool(), CSVSearchTool(), TXTSearchTool()])
             except Exception as e:
                 print(f"Warning: Could not initialize search tools due to embedding dependency: {str(e)}")
                 print("Continuing with basic file reading tools only.")
         
-        # Ensure we're using the safe LLM wrapper
-        safe_llm = self.data_generation_llm
-        if safe_llm is None:
-            print("Warning: No safe LLM available for document processor agent")
-            # Create a fallback safe LLM if none exists
-            if self.workflow_config.get('data_generation_model'):
-                safe_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-        
         agent_config = self.agents_config['document_processor'].copy()
         return Agent(
             config=agent_config,
             tools=basic_tools,
-            llm=safe_llm,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
     @agent
-    def model_selector(self) -> Agent:
-        # Ensure we're using the safe LLM wrapper
-        safe_llm = self.data_generation_llm
-        if safe_llm is None:
-            print("Warning: No safe LLM available for model selector agent")
-            # Create a fallback safe LLM if none exists
-            if self.workflow_config.get('data_generation_model'):
-                safe_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-        
-        agent_config = self.agents_config['model_selector'].copy()
+    def fact_extractor(self) -> Agent:
+        """Agent specialized in extracting structured facts from document content."""
+        agent_config = self.agents_config['fact_extractor'].copy()
         return Agent(
             config=agent_config,
-            tools=[],
-            llm=safe_llm,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
     @agent
-    def data_generation(self) -> Agent:
-        # Ensure we're using the safe LLM wrapper
-        safe_llm = self.data_generation_llm
-        if safe_llm is None:
-            print("Warning: No safe LLM available for data generation agent")
-            # Create a fallback safe LLM if none exists
-            if self.workflow_config.get('data_generation_model'):
-                safe_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-        
-        agent_config = self.agents_config['data_generation'].copy()
+    def concept_extractor(self) -> Agent:
+        """Agent specialized in extracting structured concepts from document content."""
+        agent_config = self.agents_config['concept_extractor'].copy()
         return Agent(
             config=agent_config,
-            tools=[],
-            llm=safe_llm,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
     @agent
-    def rag_implementation(self) -> Agent:
-        # Ensure we're using the safe LLM wrapper for text generation
-        safe_llm = self.data_generation_llm
-        if safe_llm is None:
-            print("Warning: No safe LLM available for RAG implementation agent")
-            # Create a fallback safe LLM if none exists
-            if self.workflow_config.get('data_generation_model'):
-                safe_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-        
-        agent_config = self.agents_config['rag_implementation'].copy()
+    def qa_generator(self) -> Agent:
+        """Agent responsible for generating high-quality Q&A pairs in Alpaca format."""
+        agent_config = self.agents_config['qa_generator'].copy()
         return Agent(
             config=agent_config,
-            tools=[],
-            llm=safe_llm,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
     @agent
-    def optimization(self) -> Agent:
-        # Ensure we're using the safe LLM wrapper
-        safe_llm = self.data_generation_llm
-        if safe_llm is None:
-            print("Warning: No safe LLM available for optimization agent")
-            # Create a fallback safe LLM if none exists
-            if self.workflow_config.get('data_generation_model'):
-                safe_llm = self._create_llm(
-                    self.workflow_config['data_generation_model'],
-                    self.workflow_config
-                )
-        
-        agent_config = self.agents_config['optimization'].copy()
+    def quality_evaluator(self) -> Agent:
+        """Agent responsible for evaluating the quality of generated Q&A pairs."""
+        agent_config = self.agents_config['quality_evaluator'].copy()
         return Agent(
             config=agent_config,
-            tools=[],
-            llm=safe_llm,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
-
-    @task
-    def upload_and_read_documents(self) -> Task:
-        # Use basic file tools that don't require embeddings to avoid OpenAI dependency
-        basic_tools = [FileReadTool()]
-        
-        # Only add advanced search tools if we have proper embedding configuration
-        if self.embedding_llm is not None:
-            try:
-                # Try to add search tools, but catch any OpenAI dependency errors
-                basic_tools.extend([PDFSearchTool(), CSVSearchTool(), TXTSearchTool()])
-            except Exception as e:
-                print(f"Warning: Could not initialize task search tools due to embedding dependency: {str(e)}")
-                print("Task will use basic file reading tools only.")
-        
-        return Task(
-            config=self.tasks_config['upload_and_read_documents'],
-            tools=basic_tools,
+    @agent
+    def llm_tester(self) -> Agent:
+        """Agent responsible for running LLM "shoot-out" tests and recording performance."""
+        agent_config = self.agents_config['llm_tester'].copy()
+        return Agent(
+            config=agent_config,
+            llm=self.default_worker_llm, # This will be overridden by Manager's dynamic selection
+            verbose=True,
         )
 
     @task
-    def select_models(self) -> Task:
+    def process_documents_task(self) -> Task:
         return Task(
-            config=self.tasks_config['select_models'],
-            tools=[],
+            config=self.tasks_config['process_documents_task'],
+            tools=[FileReadTool(), PDFSearchTool(), CSVSearchTool(), TXTSearchTool()], # Tools for document reading
+            agent=self.document_processor(),
         )
 
     @task
-    def generate_synthetic_data_for_each_document(self) -> Task:
+    def extract_facts_task(self) -> Task:
         return Task(
-            config=self.tasks_config['generate_synthetic_data_for_each_document'],
-            tools=[],
+            config=self.tasks_config['extract_facts_task'],
+            agent=self.fact_extractor(),
         )
 
     @task
-    def implement_rag_for_each_document(self) -> Task:
+    def extract_concepts_task(self) -> Task:
         return Task(
-            config=self.tasks_config['implement_rag_for_each_document'],
-            tools=[],
+            config=self.tasks_config['extract_concepts_task'],
+            agent=self.concept_extractor(),
         )
 
     @task
-    def optimize_performance(self) -> Task:
+    def generate_qa_pairs_task(self) -> Task:
         return Task(
-            config=self.tasks_config['optimize_performance'],
-            tools=[],
+            config=self.tasks_config['generate_qa_pairs_task'],
+            agent=self.qa_generator(),
         )
 
+    @task
+    def evaluate_qa_quality_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['evaluate_qa_quality_task'],
+            agent=self.quality_evaluator(),
+        )
+
+    @task
+    def run_llm_shootout_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['run_llm_shootout_task'],
+            agent=self.llm_tester(),
+        )
 
     @crew
     def crew(self) -> Crew:
         """Creates the LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptions crew"""
         return Crew(
-            agents=self.agents, # Automatically created by the @agent decorator
-            tasks=self.tasks, # Automatically created by the @task decorator
-            process=Process.sequential,
+            agents=[
+                self.manager_agent(),
+                self.document_processor(),
+                self.fact_extractor(),
+                self.concept_extractor(),
+                self.qa_generator(),
+                self.quality_evaluator(),
+                self.llm_tester(),
+            ],
+            tasks=[
+                self.process_documents_task(),
+                self.extract_facts_task(),
+                self.extract_concepts_task(),
+                self.generate_qa_pairs_task(),
+                self.evaluate_qa_quality_task(),
+                self.run_llm_shootout_task(),
+            ],
+            process=Process.hierarchical, # Changed to hierarchical
+            manager_llm=self.manager_llm, # Assign the manager LLM
             verbose=True,
         )
