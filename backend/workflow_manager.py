@@ -15,6 +15,7 @@ from backend.models import WorkflowConfig, WorkflowStatus, WorkflowProgress, Wor
 from backend.llm_manager import LLMManager
 from backend.rag_system import RAGSystem
 from backend.improved_alpaca_generator import ImprovedAlpacaGenerator
+from backend.manager_agent import ManagerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -132,13 +133,45 @@ class WorkflowManager:
             raise
     
     async def _setup_models(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
-        """Setup and validate models, then execute CrewAI workflow"""
+        """Setup and validate models using Manager Agent, then execute CrewAI workflow"""
         try:
             await websocket_manager.broadcast({
                 "type": "log",
                 "level": "info",
-                "message": "Setting up models..."
+                "message": "Initializing Manager Agent for intelligent LLM selection..."
             })
+            
+            # Initialize Manager Agent
+            manager_agent = ManagerAgent(config.manager_model, self.llm_manager)
+            
+            await websocket_manager.broadcast({
+                "type": "log",
+                "level": "info",
+                "message": f"Manager Agent using strategy: {config.selection_strategy}"
+            })
+            
+            # Use Manager Agent to select optimal LLMs for different tasks
+            selected_models = {}
+            
+            # Select data generation model
+            data_gen_model, reasoning = await manager_agent.select_optimal_llm(
+                "data_generation", config.selection_strategy
+            )
+            selected_models["data_generation"] = data_gen_model
+            
+            await websocket_manager.broadcast({
+                "type": "log",
+                "level": "info",
+                "message": f"Manager Agent selected for data generation: {data_gen_model}"
+            })
+            await websocket_manager.broadcast({
+                "type": "log",
+                "level": "info", 
+                "message": f"Selection reasoning: {reasoning['summary']}"
+            })
+            
+            # Update config with Manager Agent's selections
+            config.data_generation_model = data_gen_model
             
             # Test models
             test_results = await self.llm_manager.test_models(config)

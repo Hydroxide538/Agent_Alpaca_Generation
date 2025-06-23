@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Shootout Arena</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/styles.css" rel="stylesheet">
+    <style>
+        .shootout-arena {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .arena-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .arena-title {
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+        
+        .arena-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .model-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .model-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .model-card.competing {
+            border-left: 5px solid #28a745;
+        }
+        
+        .model-card.running {
+            border-left: 5px solid #ffc107;
+            animation: pulse 2s infinite;
+        }
+        
+        .model-card.grading {
+            border-left: 5px solid #17a2b8;
+            animation: glow 1.5s infinite alternate;
+        }
+        
+        .model-card.complete {
+            border-left: 5px solid #6f42c1;
+        }
+        
+        .model-card.failed {
+            border-left: 5px solid #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 8px 32px rgba(255, 193, 7, 0.3); }
+            50% { box-shadow: 0 8px 32px rgba(255, 193, 7, 0.6); }
+            100% { box-shadow: 0 8px 32px rgba(255, 193, 7, 0.3); }
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 8px 32px rgba(23, 162, 184, 0.3); }
+            100% { box-shadow: 0 8px 32px rgba(23, 162, 184, 0.8); }
+        }
+        
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .model-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .model-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-queued { background: #e9ecef; color: #6c757d; }
+        .status-running { background: #fff3cd; color: #856404; }
+        .status-grading { background: #d1ecf1; color: #0c5460; }
+        .status-complete { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        
+        .progress-section {
+            margin-bottom: 15px;
+        }
+        
+        .task-progress {
+            margin-bottom: 10px;
+        }
+        
+        .task-name {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .scores-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .score-item {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .score-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .leaderboard-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .leaderboard-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 50px;
+            text-align: center;
+        }
+        
+        .rank.first { color: #ffd700; }
+        .rank.second { color: #c0c0c0; }
+        .rank.third { color: #cd7f32; }
+        
+        .model-info {
+            flex: 1;
+            margin-left: 15px;
+        }
+        
+        .model-info h5 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .model-info small {
+            color: #666;
+        }
+        
+        .total-score {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .control-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .manager-status {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .manager-status.grading {
+            animation: managerGlow 2s infinite alternate;
+        }
+        
+        @keyframes managerGlow {
+            0% { background: rgba(255, 255, 255, 0.95); }
+            100% { background: rgba(23, 162, 184, 0.1); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success { background: #28a745; }
+        .notification.info { background: #17a2b8; }
+        .notification.warning { background: #ffc107; color: #333; }
+        .notification.error { background: #dc3545; }
+        
+        .live-log {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .log-timestamp {
+            color: #888;
+        }
+        
+        .log-model {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .log-task {
+            color: #00ffff;
+        }
+        
+        .log-score {
+            color: #ff6600;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="shootout-arena">
+        <div class="container-fluid">
+            <!-- Arena Header -->
+            <div class="arena-header">
+                <h1 class="arena-title">
+                    <i class="fas fa-trophy me-3"></i>
+                    LLM SHOOTOUT ARENA
+                    <i class="fas fa-trophy ms-3"></i>
+                </h1>
+                <p class="arena-subtitle">Battle of the Language Models - May the Best AI Win!</p>
+            </div>
+            
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4><i class="fas fa-cog me-2"></i>Competition Setup</h4>
+                        <div class="mb-3">
+                            <label class="form-label">Select Document for Evaluation</label>
+                            <select class="form-select" id="documentSelect">
+                                <option value="">Loading documents...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select Models to Compete</label>
+                            <div id="modelSelection" class="row">
+                                <div class="col-12 text-muted">Loading available models...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4><i class="fas fa-play-circle me-2"></i>Competition Control</h4>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" id="startShootoutBtn">
+                                <i class="fas fa-rocket me-2"></i>Start LLM Shootout!
+                            </button>
+                            <button class="btn btn-warning" id="stopShootoutBtn" disabled>
+                                <i class="fas fa-stop me-2"></i>Stop Competition
+                            </button>
+                            <button class="btn btn-info" id="resetArenaBtn">
+                                <i class="fas fa-redo me-2"></i>Reset Arena
+                            </button>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select a document and at least 2 models to start the competition
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manager Status -->
+            <div class="manager-status" id="managerStatus">
+                <h5><i class="fas fa-user-tie me-2"></i>Manager LLM Status</h5>
+                <p class="mb-0" id="managerMessage">Ready to evaluate and score model performances</p>
+            </div>
+            
+            <!-- Leaderboard -->
+            <div class="leaderboard" id="leaderboard" style="display: none;">
+                <h2 class="leaderboard-title">
+                    <i class="fas fa-medal me-2"></i>Live Leaderboard
+                </h2>
+                <div id="leaderboardContent">
+                    <!-- Leaderboard items will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Models Grid -->
+            <div class="row" id="modelsGrid">
+                <!-- Model cards will be populated here -->
+            </div>
+            
+            <!-- Live Log -->
+            <div class="control-panel">
+                <h4><i class="fas fa-terminal me-2"></i>Live Competition Log</h4>
+                <div class="live-log" id="liveLog">
+                    <div class="log-entry">
+                        <span class="log-timestamp">[Ready]</span> 
+                        <span>LLM Shootout Arena initialized. Select models and start competition!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class LLMShootoutArena {
+            constructor() {
+                this.models = [];
+                this.selectedModels = [];
+                this.documents = [];
+                this.selectedDocument = null;
+                this.isRunning = false;
+                this.websocket = null;
+                this.scores = {};
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.loadDocuments();
+                this.loadModels();
+                this.connectWebSocket();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startShootoutBtn').addEventListener('click', () => this.startShootout());
+                document.getElementById('stopShootoutBtn').addEventListener('click', () => this.stopShootout());
+                document.getElementById('resetArenaBtn').addEventListener('click', () => this.resetArena());
+                document.getElementById('documentSelect').addEventListener('change', (e) => this.selectDocument(e.target.value));
+            }
+            
+            async loadDocuments() {
+                try {
+                    const response = await fetch('/api/documents');
+                    const documents = await response.json();
+                    this.documents = documents;
+                    
+                    const select = document.getElementById('documentSelect');
+                    select.innerHTML = '<option value="">Select a document...</option>';
+                    
+                    documents.forEach(doc => {
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.name;
+                        select.appendChild(option);
+                    });
+                } catch (error) {
+                    this.showNotification('Failed to load documents', 'error');
+                }
+            }
+            
+            async loadModels() {
+                try {
+                    const response = await fetch('/api/ollama/models');
+                    const models = await response.json();
+                    this.models = models.filter(m => m.type === 'text_generation');
+                    
+                    this.renderModelSelection();
+                    this.renderModelsGrid();
+                } catch (error) {
+                    this.showNotification('Failed to load models', 'error');
+                }
+            }
+            
+            renderModelSelection() {
+                const container = document.getElementById('modelSelection');
+                container.innerHTML = '';
+                
+                this.models.forEach(model => {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 mb-2';
+                    
+                    col.innerHTML = `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="${model.name}" id="model_${model.name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                            <label class="form-check-label" for="model_${model.name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                                <strong>${model.name}</strong>
+                                <br><small class="text-muted">${this.formatSize(model.size)}</small>
+                            </label>
+                        </div>
+                    `;
+                    
+                    const checkbox = col.querySelector('input');
+                    checkbox.addEventListener('change', (e) => this.toggleModelSelection(model.name, e.target.checked));
+                    
+                    container.appendChild(col);
+                });
+            }
+            
+            renderModelsGrid() {
+                const grid = document.getElementById('modelsGrid');
+                grid.innerHTML = '';
+                
+                this.models.forEach(model => {
+                    const col = document.createElement('div');
+                    col.className = 'col-lg-4 col-md-6';
+                    col.id = `model-card-${model.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    
+                    col.innerHTML = `
+                        <div class="model-card" data-model="${model.name}">
+                            <div class="model-header">
+                                <div class="model-name">${model.name}</div>
+                                <div class="model-status status-queued">Queued</div>
+                            </div>
+                            
+                            <div class="model-info mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-microchip me-1"></i>Size: ${this.formatSize(model.size)}
+                                    <br>
+                                    <i class="fas fa-clock me-1"></i>Modified: ${this.formatDate(model.modified)}
+                                </small>
+                            </div>
+                            
+                            <div class="progress-section">
+                                <div class="task-progress">
+                                    <div class="task-name">Fact Extraction</div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="task-progress">
+                                    <div class="task-name">Concept Extraction</div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="task-progress">
+                                    <div class="task-name">Analytical Q&A</div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="scores-section">
+                                <div class="score-item">
+                                    <div class="score-label">Facts</div>
+                                    <div class="score-value" data-score="fact_extraction">-</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-label">Concepts</div>
+                                    <div class="score-value" data-score="concept_extraction">-</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-label">Q&A</div>
+                                    <div class="score-value" data-score="analytical_qa">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    grid.appendChild(col);
+                });
+            }
+            
+            toggleModelSelection(modelName, selected) {
+                if (selected) {
+                    if (!this.selectedModels.includes(modelName)) {
+                        this.selectedModels.push(modelName);
+                    }
+                } else {
+                    this.selectedModels = this.selectedModels.filter(m => m !== modelName);
+                }
+                
+                this.updateModelCardVisibility();
+            }
+            
+            updateModelCardVisibility() {
+                this.models.forEach(model => {
+                    const card = document.querySelector(`[data-model="${model.name}"]`);
+                    if (card) {
+                        if (this.selectedModels.includes(model.name)) {
+                            card.parentElement.style.display = 'block';
+                            card.classList.add('competing');
+                        } else {
+                            card.parentElement.style.display = this.selectedModels.length === 0 ? 'block' : 'none';
+                            card.classList.remove('competing');
+                        }
+                    }
+                });
+            }
+            
+            selectDocument(documentId) {
+                this.selectedDocument = documentId;
+            }
+            
+            async startShootout() {
+                if (!this.selectedDocument) {
+                    this.showNotification('Please select a document first', 'warning');
+                    return;
+                }
+                
+                if (this.selectedModels.length < 2) {
+                    this.showNotification('Please select at least 2 models to compete', 'warning');
+                    return;
+                }
+                
+                this.isRunning = true;
+                document.getElementById('startShootoutBtn').disabled = true;
+                document.getElementById('stopShootoutBtn').disabled = false;
+                
+                this.showNotification('LLM Shootout Started!', 'success');
+                this.addLogEntry('🚀 Starting LLM Shootout with ' + this.selectedModels.length + ' models');
+                
+                try {
+                    const response = await fetch('/api/llm-shootout/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            document_id: this.selectedDocument,
+                            models: this.selectedModels
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to start shootout');
+                    }
+                } catch (error) {
+                    this.showNotification('Failed to start shootout: ' + error.message, 'error');
+                    this.stopShootout();
+                }
+            }
+            
+            async stopShootout() {
+                this.isRunning = false;
+                document.getElementById('startShootoutBtn').disabled = false;
+                document.getElementById('stopShootoutBtn').disabled = true;
+                
+                this.showNotification('Shootout Stopped', 'info');
+                this.addLogEntry('⏹️ Shootout stopped by user');
+                
+                try {
+                    await fetch('/api/llm-shootout/stop', { method: 'POST' });
+                } catch (error) {
+                    console.error('Failed to stop shootout:', error);
+                }
+            }
+            
+            resetArena() {
+                this.scores = {};
+                this.selectedModels = [];
+                this.selectedDocument = null;
+                
+                // Reset UI
+                document.getElementById('documentSelect').value = '';
+                document.querySelectorAll('#modelSelection input[type="checkbox"]').forEach(cb => cb.checked = false);
+                document.getElementById('leaderboard').style.display = 'none';
+                
+                // Reset model cards
+                document.querySelectorAll('.model-card').forEach(card => {
+                    card.className = 'model-card';
+                    card.querySelector('.model-status').textContent = 'Queued';
+                    card.querySelector('.model-status').className = 'model-status status-queued';
+                    
+                    // Reset progress bars
+                    card.querySelectorAll('.progress-bar').forEach(bar => bar.style.width = '0%');
+                    
+                    // Reset scores
+                    card.querySelectorAll('.score-value').forEach(score => score.textContent = '-');
+                });
+                
+                this.updateModelCardVisibility();
+                this.clearLog();
+                this.addLogEntry('🔄 Arena reset - Ready for new competition!');
+                
+                this.showNotification('Arena Reset', 'info');
+            }
+            
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/llm-shootout`;
+                
+                this.websocket = new WebSocket(wsUrl);
+                
+                this.websocket.onopen = () => {
+                    this.addLogEntry('🔗 Connected to shootout server');
+                };
+                
+                this.websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                };
+                
+                this.websocket.onclose = () => {
+                    this.addLogEntry('❌ Disconnected from shootout server');
+                    setTimeout(() => this.connectWebSocket(), 5000); // Reconnect after 5 seconds
+                };
+                
+                this.websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+            }
+            
+            handleWebSocketMessage(data) {
+                switch (data.type) {
+                    case 'model_started':
+                        this.updateModelStatus(data.model, 'running', 'Running');
+                        this.addLogEntry(`🤖 ${data.model} started evaluation`);
+                        break;
+                        
+                    case 'task_started':
+                        this.updateTaskProgress(data.model, data.task, 0);
+                        this.addLogEntry(`📋 ${data.model} started ${data.task}`);
+                        break;
+                        
+                    case 'task_progress':
+                        this.updateTaskProgress(data.model, data.task, data.progress);
+                        break;
+                        
+                    case 'task_completed':
+                        this.updateTaskProgress(data.model, data.task, 100);
+                        this.updateScore(data.model, data.task, data.score);
+                        this.addLogEntry(`✅ ${data.model} completed ${data.task} - Score: ${data.score.toFixed(2)}`);
+                        break;
+                        
+                    case 'model_grading':
+                        this.updateModelStatus(data.model, 'grading', 'Being Graded');
+                        this.setManagerGrading(true);
+                        this.addLogEntry(`🎯 Manager LLM grading ${data.model}`);
+                        break;
+                        
+                    case 'model_completed':
+                        this.updateModelStatus(data.model, 'complete', 'Complete');
+                        this.setManagerGrading(false);
+                        this.updateLeaderboard();
+                        this.addLogEntry(`🏆 ${data.model} evaluation complete`);
+                        break;
+                        
+                    case 'model_failed':
+                        this.updateModelStatus(data.model, 'failed', 'Failed');
+                        this.addLogEntry(`❌ ${data.model} evaluation failed: ${data.error}`);
+                        break;
+                        
+                    case 'shootout_completed':
+                        this.isRunning = false;
+                        document.getElementById('startShootoutBtn').disabled = false;
+                        document.getElementById('stopShootoutBtn').disabled = true;
+                        this.setManagerGrading(false);
+                        this.showNotification('🏆 Shootout Complete!', 'success');
+                        this.addLogEntry('🎉 LLM Shootout completed! Check the leaderboard for results.');
+                        break;
+                }
+            }
+            
+            updateModelStatus(modelName, statusClass, statusText) {
+                const card = document.querySelector(`[data-model="${modelName}"]`);
+                if (card) {
+                    card.className = `model-card ${statusClass}`;
+                    const statusElement = card.querySelector('.model-status');
+                    statusElement.textContent = statusText;
+                    statusElement.className = `model-status status-${statusClass}`;
+                }
+            }
+            
+            updateTaskProgress(modelName, taskName, progress) {
+                const card = document.querySelector(`[data-model="${modelName}"]`);
+                if (card) {
+                    const taskMap = {
+                        'fact_extraction': 0,
+                        'concept_extraction': 1,
+                        'analytical_qa': 2
+                    };
+                    
+                    const taskIndex = taskMap[taskName];
+                    if (taskIndex !== undefined) {
+                        const progressBar = card.querySelectorAll('.progress-bar')[taskIndex];
+                        if (progressBar) {
+                            progressBar.style.width = `${progress}%`;
+                        }
+                    }
+                }
+            }
+            
+            updateScore(modelName, taskName, score) {
+                const card = document.querySelector(`[data-model="${modelName}"]`);
+                if (card) {
+                    const scoreElement = card.querySelector(`[data-score="${taskName}"]`);
+                    if (scoreElement) {
+                        scoreElement.textContent = score.toFixed(2);
+                    }
+                }
+                
+                // Store score for leaderboard
+                if (!this.scores[modelName]) {
+                    this.scores[modelName] = {};
+                }
+                this.scores[modelName][taskName] = score;
+            }
+            
+            updateLeaderboard() {
+                const leaderboard = document.getElementById('leaderboard');
+                const content = document.getElementById('leaderboardContent');
+                
+                // Calculate total scores
+                const modelScores = Object.keys(this.scores).map(modelName => {
+                    const scores = this.scores[modelName];
+                    const total = (scores.fact_extraction || 0) + (scores.concept_extraction || 0) + (scores.analytical_qa || 0);
+                    return { model: modelName, total, scores };
+                }).sort((a, b) => b.total - a.total);
+                
+                if (modelScores.length === 0) return;
+                
+                content.innerHTML = '';
+                modelScores.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'leaderboard-item';
+                    
+                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                    
+                    div.innerHTML = `
+                        <div class="rank ${rankClass}">${medal || (index + 1)}</div>
+                        <div class="model-info">
+                            <h5>${item.model}</h5>
+                            <small>
+                                Facts: ${(item.scores.fact_extraction || 0).toFixed(2)} | 
+                                Concepts: ${(item.scores.concept_extraction || 0).toFixed(2)} | 
+                                Q&A: ${(item.scores.analytical_qa || 0).toFixed(2)}
+                            </small>
+                        </div>
+                        <div class="total-score">${item.total.toFixed(2)}</div>
+                    `;
+                    
+                    content.appendChild(div);
+                });
+                
+                leaderboard.style.display = 'block';
+            }
+            
+            setManagerGrading(isGrading) {
+                const managerStatus = document.getElementById('managerStatus');
+                const managerMessage = document.getElementById('managerMessage');
+                
+                if (isGrading) {
+                    managerStatus.classList.add('grading');
+                    managerMessage.textContent = '🎯 Evaluating and scoring model performance...';
+                } else {
+                    managerStatus.classList.remove('grading');
+                    managerMessage.textContent = 'Ready to evaluate and score model performances';
+                }
+            }
+            
+            showNotification(message, type) {
+                const container = document.getElementById('notificationContainer');
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                container.appendChild(notification);
+                
+                // Show notification
+                setTimeout(() => notification.classList.add('show'), 100);
+                
+                // Hide and remove notification
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => container.removeChild(notification), 300);
+                }, 3000);
+            }
+            
+            addLogEntry(message) {
+                const log = document.getElementById('liveLog');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                
+                const timestamp = new Date().toLocaleTimeString();
+                entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+                
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+            }
+            
+            clearLog() {
+                const log = document.getElementById('liveLog');
+                log.innerHTML = '';
+            }
+            
+            formatSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            formatDate(dateString) {
+                if (!dateString) return 'Unknown';
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            }
+        }
+        
+        // Initialize the arena when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new LLMShootoutArena();
+        });
+    </script>
+</body>
+</html>

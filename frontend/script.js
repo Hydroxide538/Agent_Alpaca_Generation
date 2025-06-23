@@ -35,7 +35,7 @@ class WorkflowManager {
         document.getElementById('refreshModelsBtn').addEventListener('click', () => this.refreshOllamaModels());
         
         // Save configuration on change
-        ['dataGenModel', 'embeddingModel', 'rerankingModel', 'openaiKey', 'ollamaUrl', 'enableGpuOptimization'].forEach(id => {
+        ['managerModel', 'selectionStrategy', 'embeddingModel', 'rerankingModel', 'openaiKey', 'ollamaUrl', 'enableGpuOptimization'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => {
@@ -302,13 +302,30 @@ class WorkflowManager {
                 this.currentWorkflowId = result.workflow_id;
                 this.logMessage('Workflow started successfully', 'success');
             } else {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to start workflow');
+                let errorMessage = 'Failed to start workflow';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch (parseError) {
+                    // If JSON parsing fails, use the response status text
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
             }
         } catch (error) {
-            this.logMessage(`Failed to start workflow: ${error.message}`, 'error');
+            let displayMessage = 'Failed to start workflow';
+            
+            if (error instanceof Error) {
+                displayMessage = error.message;
+            } else if (typeof error === 'string') {
+                displayMessage = error;
+            } else if (error && typeof error === 'object') {
+                displayMessage = error.detail || error.message || JSON.stringify(error);
+            }
+            
+            this.logMessage(`Failed to start workflow: ${displayMessage}`, 'error');
             this.setWorkflowRunning(false);
-            this.showAlert(`Failed to start workflow: ${error.message}`, 'error');
+            this.showAlert(`Failed to start workflow: ${displayMessage}`, 'error');
         }
     }
 
@@ -438,8 +455,8 @@ class WorkflowManager {
     validateConfiguration() {
         const config = this.getConfiguration();
         
-        if (!config.data_generation_model) {
-            this.showAlert('Please select a data generation model', 'warning');
+        if (!config.manager_model) {
+            this.showAlert('Please select a Manager Agent model', 'warning');
             return false;
         }
         
@@ -454,7 +471,7 @@ class WorkflowManager {
         }
         
         // Check if OpenAI models are selected but no API key provided
-        if ((config.data_generation_model.startsWith('openai:') || 
+        if ((config.manager_model.startsWith('openai:') || 
              config.embedding_model.startsWith('openai:')) && 
             !config.openai_api_key) {
             this.showAlert('OpenAI API key is required for OpenAI models', 'warning');
@@ -465,14 +482,30 @@ class WorkflowManager {
     }
 
     getConfiguration() {
+        // Ensure documents are properly formatted for the backend
+        const documents = this.uploadedDocuments.map(doc => ({
+            id: doc.id,
+            original_name: doc.original_name,
+            filename: doc.filename,
+            path: doc.path,
+            size: doc.size,
+            type: doc.type,
+            token_count: doc.token_count || null,
+            character_count: doc.character_count || null,
+            word_count: doc.word_count || null,
+            encoding: doc.encoding || null
+        }));
+
         return {
-            data_generation_model: document.getElementById('dataGenModel').value,
+            manager_model: document.getElementById('managerModel').value,
+            selection_strategy: document.getElementById('selectionStrategy').value,
             embedding_model: document.getElementById('embeddingModel').value,
-            reranking_model: document.getElementById('rerankingModel').value,
-            openai_api_key: document.getElementById('openaiKey').value,
-            ollama_url: document.getElementById('ollamaUrl').value,
+            reranking_model: document.getElementById('rerankingModel').value || null,
+            openai_api_key: document.getElementById('openaiKey').value || null,
+            ollama_url: document.getElementById('ollamaUrl').value || "http://host.docker.internal:11434",
             enable_gpu_optimization: document.getElementById('enableGpuOptimization').checked,
-            documents: this.uploadedDocuments
+            documents: documents,
+            workflow_type: "full"  // Default workflow type
         };
     }
 
@@ -947,13 +980,15 @@ class WorkflowManager {
     }
 
     populateModelDropdowns(ollamaModels) {
-        const dataGenSelect = document.getElementById('dataGenModel');
+        const managerSelect = document.getElementById('managerModel');
         const embeddingSelect = document.getElementById('embeddingModel');
         const rerankingSelect = document.getElementById('rerankingModel');
 
         // Clear existing options and set placeholder
-        [dataGenSelect, embeddingSelect, rerankingSelect].forEach(select => {
-            select.innerHTML = '<option value="">Select Model...</option>';
+        [managerSelect, embeddingSelect, rerankingSelect].forEach(select => {
+            if (select) {
+                select.innerHTML = '<option value="">Select Model...</option>';
+            }
         });
 
         // Categorize Ollama models
@@ -974,14 +1009,17 @@ class WorkflowManager {
                 return a.name.localeCompare(b.name);
             });
 
-        dataGenModels.forEach(model => {
-            const option = document.createElement('option');
-            option.value = `ollama:${model.name}`;
-            const recommendation = model.recommended ? ` (${model.recommended})` : '';
-            option.textContent = `Ollama - ${model.name}${recommendation}`;
-            if (model.isLarge) option.style.fontWeight = 'bold';
-            dataGenSelect.appendChild(option);
-        });
+        // Populate Manager Agent dropdown with data generation models
+        if (managerSelect) {
+            dataGenModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = `ollama:${model.name}`;
+                const recommendation = model.recommended ? ` (${model.recommended})` : '';
+                option.textContent = `Ollama - ${model.name}${recommendation}`;
+                if (model.isLarge) option.style.fontWeight = 'bold';
+                managerSelect.appendChild(option);
+            });
+        }
 
         // Add embedding models (prioritize dedicated embedding models)
         const embeddingModels = categorizedModels
@@ -1027,20 +1065,22 @@ class WorkflowManager {
             { value: 'openai:text-embedding-ada-002', text: 'OpenAI - Ada 002 (Legacy)' }
         ];
 
-        // Add separators and OpenAI options
-        if (dataGenModels.length > 0) {
+        // Add separators and OpenAI options to Manager Agent dropdown
+        if (managerSelect && dataGenModels.length > 0) {
             const separator = document.createElement('option');
             separator.disabled = true;
             separator.textContent = '── OpenAI Models ──';
-            dataGenSelect.appendChild(separator);
+            managerSelect.appendChild(separator);
         }
 
-        openaiDataGenModels.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.value;
-            option.textContent = model.text;
-            dataGenSelect.appendChild(option);
-        });
+        if (managerSelect) {
+            openaiDataGenModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.value;
+                option.textContent = model.text;
+                managerSelect.appendChild(option);
+            });
+        }
 
         if (embeddingModels.length > 0) {
             const separator = document.createElement('option');

@@ -27,9 +27,11 @@ class DocumentInfo(BaseModel):
     encoding: Optional[str] = None
 
 class WorkflowConfig(BaseModel):
-    data_generation_model: str
+    manager_model: str
+    selection_strategy: str = "performance_based"
     embedding_model: str
     reranking_model: Optional[str] = None
+    data_generation_model: Optional[str] = None
     openai_api_key: Optional[str] = None
     ollama_url: str = "http://host.docker.internal:11434"
     enable_gpu_optimization: bool = True

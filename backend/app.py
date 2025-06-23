@@ -24,6 +24,7 @@ from backend.workflow_manager import WorkflowManager
 from backend.websocket_manager import WebSocketManager
 from backend.troubleshooting import TroubleshootingManager
 from backend.token_counter import TokenCounter
+from backend.llm_shootout_manager import LLMShootoutManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -54,6 +55,7 @@ llm_manager = LLMManager()
 workflow_manager = WorkflowManager()
 websocket_manager = WebSocketManager()
 troubleshooting_manager = TroubleshootingManager()
+llm_shootout_manager = LLMShootoutManager()
 
 # Storage directories
 UPLOAD_DIR = "uploads"
@@ -627,6 +629,91 @@ async def run_enhanced_llm_evaluation():
     except Exception as e:
         logger.error(f"Enhanced LLM evaluation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Enhanced LLM evaluation failed: {str(e)}")
+
+# LLM Shootout endpoints
+class ShootoutRequest(BaseModel):
+    document_id: str
+    models: List[str]
+
+@app.get("/llm-shootout")
+async def serve_shootout_arena():
+    """Serve the LLM Shootout Arena HTML file"""
+    shootout_html_path = os.path.join(project_root, "frontend", "llm_shootout.html")
+    return FileResponse(shootout_html_path)
+
+@app.get("/api/documents")
+async def get_available_documents():
+    """Get list of available documents for shootout"""
+    try:
+        documents = await llm_shootout_manager.get_available_documents()
+        return documents
+    except Exception as e:
+        logger.error(f"Failed to get documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get documents: {str(e)}")
+
+@app.get("/api/ollama/models")
+async def get_ollama_models_for_shootout():
+    """Get available Ollama models for shootout"""
+    try:
+        models = await llm_shootout_manager.discover_ollama_models()
+        return models
+    except Exception as e:
+        logger.error(f"Failed to get Ollama models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get Ollama models: {str(e)}")
+
+@app.post("/api/llm-shootout/start")
+async def start_llm_shootout(request: ShootoutRequest):
+    """Start an LLM shootout competition"""
+    try:
+        result = await llm_shootout_manager.start_shootout(request.document_id, request.models)
+        return result
+    except Exception as e:
+        logger.error(f"Failed to start shootout: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start shootout: {str(e)}")
+
+@app.post("/api/llm-shootout/stop")
+async def stop_llm_shootout():
+    """Stop the current LLM shootout competition"""
+    try:
+        result = await llm_shootout_manager.stop_shootout()
+        return result
+    except Exception as e:
+        logger.error(f"Failed to stop shootout: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop shootout: {str(e)}")
+
+@app.get("/api/llm-shootout/status")
+async def get_shootout_status():
+    """Get current shootout competition status"""
+    try:
+        status = await llm_shootout_manager.get_competition_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get shootout status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get shootout status: {str(e)}")
+
+@app.websocket("/ws/llm-shootout")
+async def shootout_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for LLM Shootout real-time updates"""
+    await websocket.accept()
+    
+    # Add progress callback for shootout updates
+    async def shootout_callback(message):
+        try:
+            await websocket.send_text(json.dumps(message))
+        except Exception as e:
+            logger.error(f"Error sending shootout update: {e}")
+    
+    llm_shootout_manager.add_progress_callback(shootout_callback)
+    
+    try:
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        llm_shootout_manager.remove_progress_callback(shootout_callback)
+    except Exception as e:
+        logger.error(f"Shootout WebSocket error: {str(e)}")
+        llm_shootout_manager.remove_progress_callback(shootout_callback)
 
 if __name__ == "__main__":
     import uvicorn

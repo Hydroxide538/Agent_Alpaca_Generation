@@ -27,21 +27,37 @@
                         <h5><i class="fas fa-cog me-2"></i>Configuration</h5>
                     </div>
                     <div class="card-body">
-                        <!-- LLM Selection -->
+                        <!-- Manager Agent Configuration -->
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
-                                <label class="form-label mb-0">Data Generation LLM</label>
+                                <label class="form-label mb-0">Manager Agent</label>
                                 <button class="btn btn-sm btn-outline-secondary" id="refreshModelsBtn" title="Refresh available models">
                                     <i class="fas fa-sync me-1"></i>Refresh
                                 </button>
                             </div>
-                            <select class="form-select" id="dataGenModel">
+                            <select class="form-select" id="managerModel">
                                 <option value="">Loading models...</option>
                             </select>
                             <div class="form-text">
-                                <a href="https://ollama.com/library" target="_blank" class="text-decoration-none">
-                                    <i class="fas fa-download me-1"></i>Download more Ollama models
-                                </a>
+                                <i class="fas fa-info-circle me-1"></i>
+                                The Manager Agent will select optimal LLMs for each task based on shootout results
+                            </div>
+                        </div>
+
+                        <!-- LLM Selection Strategy -->
+                        <div class="mb-3">
+                            <label class="form-label">LLM Selection Strategy</label>
+                            <select class="form-select" id="selectionStrategy">
+                                <option value="performance_based">Performance-Based (Recommended)</option>
+                                <option value="balanced">Balanced (Performance + Speed)</option>
+                                <option value="speed_optimized">Speed-Optimized</option>
+                                <option value="quality_focused">Quality-Focused</option>
+                            </select>
+                            <div class="form-text">
+                                <small class="text-muted">
+                                    <i class="fas fa-lightbulb me-1"></i>
+                                    Manager Agent will use this strategy to select the best LLM for each task
+                                </small>
                             </div>
                         </div>
 
@@ -131,17 +147,26 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <button class="btn btn-success w-100 mb-2" id="startWorkflowBtn">
                                     <i class="fas fa-play me-2"></i>Start Full Workflow
                                 </button>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <button class="btn btn-warning w-100 mb-2" id="stopWorkflowBtn" disabled>
                                     <i class="fas fa-stop me-2"></i>Stop Workflow
                                 </button>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <button class="btn btn-danger w-100 mb-2" id="openLlmShootoutBtn" 
+                                        onclick="window.open('/llm-shootout', '_blank')"
+                                        title="Launch LLM Competition Arena"
+                                        style="background: linear-gradient(45deg, #dc3545, #fd7e14); border: none; font-weight: bold;">
+                                    <i class="fas fa-rocket me-2"></i>🏆 LLM Shootout
+                                </button>
+                                <small class="text-muted d-block text-center">AI Model Competition</small>
+                            </div>
+                            <div class="col-md-3">
                                 <button class="btn btn-info w-100 mb-2" id="troubleshootBtn" 
                                         data-bs-toggle="modal" data-bs-target="#troubleshootModal"
                                         title="Run diagnostic tests to troubleshoot issues">
@@ -342,9 +367,12 @@
                                         <button class="btn btn-outline-dark" id="runOllamaWorkflowTest">
                                             <i class="fas fa-robot me-2"></i>Ollama Workflow Test
                                         </button>
-                                        <button class="btn btn-outline-success" id="runEnhancedLlmEvaluation">
-                                            <i class="fas fa-trophy me-2"></i>Enhanced LLM Evaluation
-                                        </button>
+                            <button class="btn btn-outline-success" id="runEnhancedLlmEvaluation">
+                                <i class="fas fa-trophy me-2"></i>Enhanced LLM Evaluation
+                            </button>
+                            <button class="btn btn-outline-primary" id="openLlmShootout" onclick="window.open('/llm-shootout', '_blank')">
+                                <i class="fas fa-rocket me-2"></i>LLM Shootout Arena
+                            </button>
                                         <hr>
                                         <button class="btn btn-secondary" id="runAllTests">
                                             <i class="fas fa-play-circle me-2"></i>Run All Tests

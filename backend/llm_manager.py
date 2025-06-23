@@ -116,8 +116,10 @@ class LLMManager:
             self.ollama_base_url = config.ollama_url
         
         # Test models specified in workflow config
-        if config.data_generation_model:
+        if hasattr(config, 'data_generation_model') and config.data_generation_model:
             results["data_generation"] = await self._test_model(config.data_generation_model)
+        elif hasattr(config, 'manager_model') and config.manager_model:
+            results["manager_agent"] = await self._test_model(config.manager_model)
         if config.embedding_model:
             results["embedding"] = await self._test_model(config.embedding_model)
         if config.reranking_model:

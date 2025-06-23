@@ -21,7 +21,7 @@
   },
   "ollama:magistral:latest": {
     "fact_extraction": 0.3,
-    "concept_extraction": 0.6,
+    "concept_extraction": 0.55,
     "analytical_qa": 0.0
   },
   "ollama:phi4-reasoning:latest": {
@@ -52,6 +52,16 @@
   "ollama:llama4:latest": {
     "fact_extraction": 0.0,
     "concept_extraction": 0.75,
+    "analytical_qa": 0.0
+  },
+  "ollama:dolphin3:latest": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.83,
+    "analytical_qa": 0.0
+  },
+  "ollama:granite3-dense:8b": {
+    "fact_extraction": 0.0,
+    "concept_extraction": 0.93,
     "analytical_qa": 0.0
   }
 }
