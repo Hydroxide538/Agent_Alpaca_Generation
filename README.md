@@ -1,5 +1,6 @@
 # Synthetic Alpaca Training Data from Docs
 
+(This is a work in progress. The program works, but a few components need fine-tuning to make this use-able)
 A comprehensive web-based interface for managing CrewAI workflows focused on synthetic data generation and RAG (Retrieval-Augmented Generation) implementation. This project provides a modern frontend and robust backend to leverage CrewAI's multi-agent capabilities with support for multiple LLM providers and an advanced LLM competition system.
 
 ## 🚀 Features
