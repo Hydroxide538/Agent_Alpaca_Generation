@@ -9,6 +9,11 @@ import subprocess
 import argparse
 from pathlib import Path
 
+# Set a placeholder OpenAI API key if not already set
+# This prevents CrewAI tools from failing when they expect this environment variable
+if 'OPENAI_API_KEY' not in os.environ:
+    os.environ['OPENAI_API_KEY'] = 'placeholder_key_not_used'
+
 def check_python_version():
     """Check if Python version is compatible"""
     if sys.version_info < (3, 10):

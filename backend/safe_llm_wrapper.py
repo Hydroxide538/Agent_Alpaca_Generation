@@ -94,8 +94,15 @@ class SafeOllamaLLM:
                 )
             elif self.provider == "openai":
                 # Use OpenAI completion
-                if not self.openai_api_key:
-                    raise ValueError("OpenAI API key required for OpenAI models")
+                if not self.openai_api_key or self.openai_api_key == "your_openai_api_key_here":
+                    logger.warning("OpenAI API key not provided, falling back to Ollama")
+                    # Fall back to Ollama completion
+                    fallback_spec = "ollama:llama3.3:latest"
+                    return await self.llm_manager.safe_ollama_completion(
+                        fallback_spec, 
+                        messages, 
+                        self.config
+                    )
                 
                 # Convert messages to prompt for generate_text method
                 prompt_parts = []
@@ -172,8 +179,11 @@ class SafeLLMFactory:
             elif provider == "openai":
                 # For OpenAI, we can use the standard LLM class as it doesn't have the same issues
                 api_key = config.get('openai_api_key')
-                if not api_key:
-                    raise ValueError(f"OpenAI API key is required for model {model_spec}")
+                if not api_key or api_key == "your_openai_api_key_here":
+                    logger.warning(f"OpenAI API key not provided for {model_spec}. Falling back to Ollama model.")
+                    # Fall back to Ollama model
+                    fallback_spec = "ollama:llama3.3:latest"
+                    return SafeOllamaLLM(fallback_spec, config)
                 return LLM(
                     model=f"openai/{model_name}",
                     api_key=api_key

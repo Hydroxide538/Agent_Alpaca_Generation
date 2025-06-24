@@ -1,12 +1,12 @@
 # CrewAI Workflow Troubleshooting System
 
-This directory contains the enhanced troubleshooting system for the CrewAI Workflow Manager, including integrated test scripts, troubleshooting history, and a comprehensive wiki interface.
+This directory contains the comprehensive troubleshooting system for the CrewAI Workflow Manager, including integrated test scripts, diagnostic tools, troubleshooting history, and a web-based wiki interface. The system provides both automated diagnostics and manual troubleshooting capabilities.
 
 ## Directory Structure
 
 ```
 troubleshooting/
-├── README.md                 # This file
+├── README.md                 # This file - System overview and usage guide
 ├── scripts/                  # All test scripts organized by category
 │   ├── README.md            # Test scripts documentation
 │   ├── test_api.py          # API health testing
@@ -16,15 +16,22 @@ troubleshooting/
 │   ├── test_docker_ollama.py # Docker Ollama connection testing
 │   ├── test_fix_verification.py # Comprehensive fix verification
 │   ├── test_improved_alpaca.py # Improved Alpaca data generation testing
+│   ├── test_json_parser_fix.py # JSON parsing robustness testing
 │   ├── test_litellm_fix.py  # LiteLLM integration testing
 │   ├── test_model_debug.py  # Detailed model debugging
 │   ├── test_ollama_workflow.py # Ollama workflow configuration testing
 │   ├── test_workflow_fix.py # Workflow manager fix verification
 │   ├── test_workflow_integration.py # End-to-end workflow testing
-│   └── test_workflow_model.py # Workflow model setup testing
-├── wiki/                     # Wiki interface for troubleshooting
-│   ├── index.html           # Main wiki page
-│   └── wiki.js              # Wiki functionality
+│   ├── test_workflow_model.py # Workflow model setup testing
+│   ├── debug_llm_manager.py # LLM manager comprehensive debugging
+│   ├── dynamic_llm_evaluator.py # Dynamic LLM evaluation system
+│   ├── enhanced_llm_evaluator.py # Enhanced LLM evaluation with thinking models
+│   └── evaluate_llms.py     # LLM performance evaluation
+├── wiki/                     # Web-based wiki interface for troubleshooting
+│   ├── index.html           # Main wiki page with search and navigation
+│   ├── wiki.js              # Wiki functionality and interactive features
+│   ├── JSON_Parser_and_Scoring_Fixes_Summary.md # JSON parsing improvements
+│   └── LLM_Evaluation_Troubleshooting_Summary.md # LLM evaluation fixes
 └── templates/               # Issue templates and forms
     └── issue_template.md    # Standard issue report template
 ```
@@ -34,264 +41,345 @@ troubleshooting/
 ```
 knowledge/
 └── wiki/                     # Comprehensive troubleshooting documentation
-    ├── README.md            # Documentation overview
-    ├── ALPACA_IMPROVEMENTS_SUMMARY.md
-    ├── CREWAI_LITELLM_FIX_SUMMARY.md
-    ├── CRITICAL_ERRORS_FIX_SUMMARY.md
-    ├── DEPENDENCY_RESOLUTION_SUMMARY.md
-    ├── FINAL_FIX_SUMMARY.md
-    ├── LITELLM_INDEX_ERROR_FIX_SUMMARY.md
-    ├── LLM_FAILURE_FIX_SUMMARY.md
-    ├── OLLAMA_FIX_SUMMARY.md
-    ├── PYDANTIC_DEPRECATION_FIX_SUMMARY.md
-    └── WORKFLOW_TROUBLESHOOTING_SUMMARY.md
+    ├── README.md            # Documentation overview and integration guide
+    ├── ALPACA_IMPROVEMENTS_SUMMARY.md # Alpaca generation improvements
+    ├── ALPACA_QUALITY_IMPROVEMENTS.md # Quality enhancements for data generation
+    ├── CREWAI_LITELLM_FIX_SUMMARY.md # CrewAI and LiteLLM integration fixes
+    ├── CRITICAL_ERRORS_FIX_SUMMARY.md # Critical system error resolutions
+    ├── DEPENDENCY_RESOLUTION_SUMMARY.md # Dependency conflict resolutions
+    ├── FINAL_FIX_SUMMARY.md # Comprehensive fix summary
+    ├── LITELLM_INDEX_ERROR_FIX_SUMMARY.md # LiteLLM index error fixes
+    ├── LLM_FAILURE_FIX_SUMMARY.md # LLM failure troubleshooting
+    ├── OLLAMA_FIX_SUMMARY.md # Ollama integration fixes
+    ├── PYDANTIC_DEPRECATION_FIX_SUMMARY.md # Pydantic compatibility fixes
+    └── WORKFLOW_TROUBLESHOOTING_SUMMARY.md # General workflow troubleshooting
 ```
 
-## Features
+## System Integration
 
-### 1. Integrated Test Scripts
-The troubleshooting system now includes all test scripts directly in the main interface:
+### 1. Web-Based Troubleshooting Interface
+The troubleshooting system is fully integrated into the main CrewAI Workflow Manager interface:
 
-#### Available Tests:
-- **API Health Check** (`test_api.py`) - Tests basic API connectivity
-- **Docker Ollama Test** (`test_docker_ollama.py`) - Tests Docker Ollama connection
-- **Model Debug Test** (`test_model_debug.py`) - Detailed model debugging
-- **Workflow Model Test** (`test_workflow_model.py`) - Tests workflow model setup
-- **LLM Manager Debug** (`debug_llm_manager.py`) - Comprehensive LLM debugging
-- **CrewAI Workflow Test** (`test_crew_workflow.py`) - Tests CrewAI execution
-- **Ollama Workflow Test** (`test_ollama_workflow.py`) - Tests Ollama workflow configuration
+#### Access Methods:
+- **Main Interface**: Click the "Troubleshooting" button in the workflow control panel
+- **Direct URL**: Navigate to the troubleshooting modal in the main application
+- **API Endpoints**: Access diagnostic functions via REST API
 
-#### New Integrated Tests:
-- **CrewAI Workflow Test** - Comprehensive CrewAI workflow execution testing
-- **Ollama Workflow Test** - Dynamic model selection and configuration testing
+#### Features:
+- **Real-time Test Execution**: Run diagnostic tests with live output streaming
+- **Interactive Results**: View structured test results with pass/fail indicators
+- **Export Functionality**: Download complete diagnostic reports in JSON format
+- **Visual Status Tracking**: Monitor test progress with color-coded status indicators
 
-### 2. Troubleshooting Wiki
-A comprehensive wiki interface that provides:
+### 2. Backend Integration
+The troubleshooting system is managed by the `TroubleshootingManager` class in `backend/troubleshooting.py`:
 
-- **Issue History Timeline** - Chronological view of all resolved issues
-- **Common Issues Database** - Searchable database of frequent problems
-- **Test Scripts Integration** - Direct access to run diagnostic tests
-- **Quick Fixes Guide** - Step-by-step solutions for common problems
-- **Search Functionality** - Find relevant solutions quickly
-- **Category Filtering** - Filter by issue type (LLM, Docker, Model, Workflow)
+#### Core Capabilities:
+- **Async Test Execution**: All tests run asynchronously with WebSocket progress updates
+- **Comprehensive Logging**: Detailed logging with multiple severity levels
+- **Error Handling**: Robust error handling with fallback mechanisms
+- **Performance Metrics**: Timing and performance data collection
 
-#### Accessing the Wiki:
-1. Open the main troubleshooting interface
-2. Click the "Troubleshooting Wiki" button
-3. Browse issues by category or use the search function
+#### Integrated Components:
+- **LLMManager Integration**: Direct access to LLM testing and management
+- **WorkflowManager Integration**: Workflow execution testing and validation
+- **WebSocket Manager**: Real-time progress updates and logging
+- **Model Performance Tracking**: Integration with model scoring systems
 
-### 3. Troubleshooting History
-All troubleshooting summaries are now organized in the `history/` directory:
+## Available Diagnostic Tests
 
-- **alpaca_improvements.md** - System improvements and enhancements
-- **llm_failure_fix.md** - LLM failure resolution
-- **ollama_fix.md** - Ollama configuration fixes
-- **workflow_troubleshooting.md** - Workflow execution issues
+### Core System Tests
 
-### 4. Issue Reporting System
-Standardized issue reporting with:
+#### 1. API Health Check (`test_api.py`)
+- **Purpose**: Tests basic API connectivity and health endpoints
+- **Coverage**: Backend health, Ollama connectivity, model availability
+- **Integration**: Fully integrated with real-time progress updates
+- **Usage**: Validates system readiness before workflow execution
 
-- **Issue Templates** - Structured forms for consistent reporting
-- **Automatic Metadata Collection** - System info and configuration capture
-- **Test Result Integration** - Attach diagnostic test results
-- **Export Functionality** - Export troubleshooting sessions
+#### 2. Docker Ollama Test (`test_docker_ollama.py`)
+- **Purpose**: Validates Docker Ollama container connectivity and functionality
+- **Coverage**: Container status, model availability, embedding functionality
+- **Integration**: Comprehensive Docker environment validation
+- **Usage**: Essential for Docker-based Ollama deployments
 
-## How to Use
+### Model and LLM Tests
+
+#### 3. Model Debug Test (`test_model_debug.py`)
+- **Purpose**: Deep analysis of specific models including functionality testing
+- **Coverage**: Model type detection, embedding capabilities, response quality
+- **Integration**: Configurable model selection with real-time analysis
+- **Usage**: Troubleshoot specific model issues and performance
+
+#### 4. LLM Manager Debug (`debug_llm_manager.py`)
+- **Purpose**: Comprehensive LLM manager debugging and diagnostics
+- **Coverage**: Model initialization, performance tracking, error handling
+- **Integration**: Full LLMManager system validation
+- **Usage**: Diagnose LLM management system issues
+
+#### 5. Enhanced LLM Evaluation (`enhanced_llm_evaluator.py`)
+- **Purpose**: Advanced model evaluation with thinking model support
+- **Coverage**: Multi-model comparison, performance benchmarking, quality assessment
+- **Integration**: Document-based evaluation with structured scoring
+- **Usage**: Compare model performance across different tasks
+
+### Workflow Tests
+
+#### 6. CrewAI Workflow Test (`test_crew_workflow.py`)
+- **Purpose**: Tests complete CrewAI workflow execution
+- **Coverage**: Agent initialization, task execution, hierarchical process management
+- **Integration**: Full workflow validation with Manager Agent system
+- **Usage**: Validate end-to-end CrewAI functionality
+
+#### 7. Ollama Workflow Test (`test_ollama_workflow.py`)
+- **Purpose**: Tests Ollama workflow configuration with dynamic model selection
+- **Coverage**: Model discovery, configuration validation, workflow setup
+- **Integration**: Dynamic model selection and Manager Agent integration
+- **Usage**: Validate Ollama-specific workflow configurations
+
+#### 8. Workflow Model Test (`test_workflow_model.py`)
+- **Purpose**: Validates complete workflow configuration and model compatibility
+- **Coverage**: Model setup, configuration validation, compatibility checks
+- **Integration**: Comprehensive workflow configuration testing
+- **Usage**: Pre-workflow validation of model and configuration setup
+
+### System Integration Tests
+
+#### 9. Workflow Integration Test (`test_workflow_integration.py`)
+- **Purpose**: End-to-end workflow testing with all components
+- **Coverage**: Complete system integration, data flow validation
+- **Integration**: Full system validation from document upload to result generation
+- **Usage**: Comprehensive system health validation
+
+#### 10. Fix Verification Test (`test_fix_verification.py`)
+- **Purpose**: Comprehensive test to verify all applied fixes are working
+- **Coverage**: All major system fixes and improvements
+- **Integration**: Historical fix validation and regression testing
+- **Usage**: Ensure system stability after updates or changes
+
+### Specialized Tests
+
+#### 11. Improved Alpaca Test (`test_improved_alpaca.py`)
+- **Purpose**: Test improved Alpaca format data generation with enhanced features
+- **Coverage**: Structured fact extraction, concept extraction, Q&A generation
+- **Integration**: Advanced data generation pipeline validation
+- **Usage**: Validate synthetic data generation quality and functionality
+
+#### 12. JSON Parser Fix Test (`test_json_parser_fix.py`)
+- **Purpose**: Test JSON parsing robustness and error handling
+- **Coverage**: Robust JSON extraction, error recovery, format validation
+- **Integration**: Critical for LLM response parsing reliability
+- **Usage**: Ensure reliable parsing of LLM-generated JSON responses
+
+#### 13. ChromaDB Fix Test (`test_chromadb_fix.py`)
+- **Purpose**: Test ChromaDB connection and vector database functionality
+- **Coverage**: Vector database operations, embedding storage, retrieval
+- **Integration**: RAG system validation and vector database health
+- **Usage**: Validate vector database functionality for RAG operations
+
+## Advanced Features
+
+### 1. LLM Shootout Integration
+The troubleshooting system integrates with the LLM Shootout Arena:
+
+#### Competitive Evaluation:
+- **Multi-Model Testing**: Compare multiple models simultaneously
+- **Performance Benchmarking**: Standardized evaluation criteria
+- **Real-time Competition**: Live progress tracking and scoring
+- **Historical Performance**: Integration with model performance database
+
+#### Evaluation Tasks:
+- **Fact Extraction**: Structured fact extraction from documents
+- **Concept Extraction**: Key concept identification and analysis
+- **Analytical Q&A**: Complex question-answer generation
+- **Quality Assessment**: Intelligent scoring and evaluation
+
+### 2. Manager Agent System Integration
+The troubleshooting system works with the Manager Agent for intelligent diagnostics:
+
+#### Intelligent Model Selection:
+- **Performance-Based Selection**: Use historical performance data
+- **Dynamic Configuration**: Real-time model availability assessment
+- **Strategy Testing**: Validate different selection strategies
+- **Optimization Recommendations**: Suggest optimal configurations
+
+#### Performance Tracking:
+- **Historical Data**: Track model performance over time
+- **Trend Analysis**: Identify performance patterns and issues
+- **Predictive Diagnostics**: Anticipate potential problems
+- **Optimization Guidance**: Recommend system improvements
+
+### 3. Token Analysis Integration
+Comprehensive token analysis and context window management:
+
+#### Document Analysis:
+- **Token Counting**: Accurate token counting for all document types
+- **Context Window Analysis**: Model-specific context window utilization
+- **Performance Impact**: Token count impact on processing time
+- **Optimization Recommendations**: Suggest document chunking strategies
+
+#### Model Compatibility:
+- **Context Window Validation**: Ensure documents fit within model limits
+- **Model Recommendations**: Suggest appropriate models for document sizes
+- **Performance Optimization**: Optimize token usage for better performance
+
+## Usage Guide
 
 ### Running Diagnostic Tests
 
-#### From the Main Interface:
-1. Open the CrewAI Workflow Manager
-2. Click the "Troubleshooting" button
-3. Select individual tests or "Run All Tests"
-4. View real-time logs and results
+#### From the Web Interface:
+1. **Access Troubleshooting**: Click the "Troubleshooting" button in the main interface
+2. **Select Tests**: Choose individual tests or "Run All Tests" for comprehensive diagnostics
+3. **Monitor Progress**: Watch real-time logs and status updates
+4. **Review Results**: Switch to "Test Results" view for structured analysis
+5. **Export Data**: Use "Export Results" to download diagnostic reports
 
 #### From Command Line:
 ```bash
 # Individual test scripts (from project root)
 python troubleshooting/scripts/test_api.py
 python troubleshooting/scripts/test_crew_workflow.py
-python troubleshooting/scripts/test_workflow_fix.py
 python troubleshooting/scripts/test_docker_ollama.py
 python troubleshooting/scripts/test_model_debug.py
-python troubleshooting/scripts/test_ollama_workflow.py
-python troubleshooting/scripts/test_workflow_model.py
+python troubleshooting/scripts/debug_llm_manager.py
 
-# Additional test scripts
-python troubleshooting/scripts/test_chromadb_fix.py
-python troubleshooting/scripts/test_crewai_fix.py
+# Enhanced evaluation
+python troubleshooting/scripts/enhanced_llm_evaluator.py
+
+# Comprehensive validation
 python troubleshooting/scripts/test_fix_verification.py
-python troubleshooting/scripts/test_improved_alpaca.py
-python troubleshooting/scripts/test_litellm_fix.py
-python troubleshooting/scripts/test_workflow_integration.py
-
-# Quick workflow fix verification
-python troubleshooting/scripts/test_workflow_fix.py
 ```
 
-### Using the Wiki
+#### Via API Endpoints:
+```bash
+# API health check
+curl -X POST http://localhost:8000/troubleshoot/api-health
 
-#### Searching for Solutions:
-1. Open the wiki interface
-2. Use the search bar to find relevant issues
-3. Filter by category (LLM, Docker, Model, Workflow)
-4. Click on issues to view detailed solutions
+# Docker Ollama test
+curl -X POST http://localhost:8000/troubleshoot/docker-ollama
 
-#### Reporting New Issues:
-1. Click "Report Issue" in the wiki
-2. Fill out the issue template
-3. Attach relevant test results
-4. Submit for tracking
+# Model debug test
+curl -X POST "http://localhost:8000/troubleshoot/model-debug?model_name=llama3.3:latest"
 
-### Exporting Troubleshooting Data
+# Enhanced LLM evaluation
+curl -X POST http://localhost:8000/troubleshoot/enhanced-llm-evaluation
+```
 
-#### From the Interface:
-1. Run diagnostic tests
-2. Click "Export Results"
-3. Save the JSON file with all test data and logs
+### Using the Troubleshooting Wiki
 
-#### Manual Export:
-- Test results are saved in the `results/` directory
-- Logs are available in the main interface
-- Wiki data can be exported from the wiki interface
+#### Accessing Documentation:
+1. **Web Interface**: Click "Troubleshooting Wiki" in the troubleshooting modal
+2. **Search Functionality**: Use the search bar to find relevant solutions
+3. **Category Filtering**: Filter by issue type (LLM, Docker, Model, Workflow)
+4. **Historical Reference**: Browse chronological issue resolution history
+
+#### Contributing to Documentation:
+1. **Issue Reporting**: Use standardized issue templates
+2. **Solution Documentation**: Document fixes and workarounds
+3. **Knowledge Sharing**: Contribute to the community knowledge base
+4. **Best Practices**: Share optimization strategies and configurations
 
 ## Common Troubleshooting Workflows
 
-### 1. LLM Failed Error
+### 1. System Health Check
 ```
-1. Run "CrewAI Workflow Test"
-2. Check if models are properly initialized
-3. Verify Ollama connection with "Docker Ollama Test"
-4. Run "LLM Manager Debug" for detailed analysis
-5. Check wiki for "LLM Failed Error" solutions
-```
-
-### 2. Model Not Found
-```
-1. Run "Model Debug Test" with the specific model
-2. Check available models with "API Health Check"
-3. Verify model names match exactly
-4. Use "Ollama Workflow Test" for configuration validation
+1. Run "API Health Check" to validate basic connectivity
+2. Run "Docker Ollama Test" if using Docker deployment
+3. Run "LLM Manager Debug" for comprehensive LLM system validation
+4. Review results and address any failures
 ```
 
-### 3. Docker Connection Issues
+### 2. Model Performance Issues
 ```
-1. Run "Docker Ollama Test"
-2. Verify Ollama URL (host.docker.internal:11434)
-3. Check Docker network configuration
-4. Test with localhost:11434 as fallback
-```
-
-### 4. Workflow Execution Problems
-```
-1. Run "Workflow Model Test" to verify configuration
-2. Use "CrewAI Workflow Test" for execution testing
-3. Check "LLM Manager Debug" for model issues
-4. Review workflow troubleshooting history
+1. Run "Model Debug Test" for specific problematic models
+2. Use "Enhanced LLM Evaluation" for comprehensive model comparison
+3. Check "LLM Shootout" results for performance benchmarks
+4. Apply Manager Agent recommendations for optimal model selection
 ```
 
-## Test Script Details
+### 3. Workflow Execution Problems
+```
+1. Run "Workflow Model Test" to validate configuration
+2. Use "CrewAI Workflow Test" for execution validation
+3. Run "Ollama Workflow Test" for Ollama-specific issues
+4. Check "Workflow Integration Test" for end-to-end validation
+```
 
-### API Health Check
-- Tests basic server connectivity
-- Validates Ollama endpoints
-- Checks model availability
-- **Integration**: Fully integrated in troubleshooting interface
+### 4. Data Generation Issues
+```
+1. Run "Improved Alpaca Test" to validate data generation pipeline
+2. Use "JSON Parser Fix Test" to ensure robust response parsing
+3. Check token analysis for document compatibility
+4. Validate RAG system with "ChromaDB Fix Test"
+```
 
-### CrewAI Workflow Test
-- Tests complete CrewAI workflow execution
-- Validates agent initialization
-- Checks LLM assignments
-- Tests quick workflow execution
-- **Integration**: New integrated test
-
-### Ollama Workflow Test
-- Dynamic model selection testing
-- Configuration validation
-- OpenAI model rejection testing
-- CrewAI initialization without API key
-- **Integration**: New integrated test
-
-### Docker Ollama Test
-- Docker network connectivity
-- Model availability testing
-- Embedding model functionality
-- Connection timeout handling
-- **Integration**: Fully integrated
-
-### Model Debug Test
-- Detailed model analysis
-- Model type detection (embedding vs generation)
-- Functionality testing
-- Performance metrics
-- **Integration**: Fully integrated with model selection
-
-### LLM Manager Debug
-- Comprehensive LLM testing
-- Model initialization validation
-- Error handling verification
-- Response time measurement
-- **Integration**: Fully integrated
-
-### Workflow Model Test
-- Configuration validation
-- Model compatibility testing
-- Setup verification
-- **Integration**: Fully integrated
-
-## Best Practices
-
-### 1. Regular Testing
-- Run diagnostic tests before major workflows
-- Use "Run All Tests" for comprehensive system checks
-- Monitor test results for performance trends
-
-### 2. Issue Documentation
-- Use the issue template for consistent reporting
-- Include test results with issue reports
-- Document workarounds and solutions
-
-### 3. Wiki Maintenance
-- Search existing issues before reporting new ones
-- Update solutions when better approaches are found
-- Contribute to the knowledge base
-
-### 4. Preventive Measures
-- Regular model availability checks
-- Docker connection validation
-- Configuration backup and validation
+### 5. Performance Optimization
+```
+1. Use "Enhanced LLM Evaluation" to identify best-performing models
+2. Run "LLM Shootout" competitions for comparative analysis
+3. Apply Manager Agent optimization recommendations
+4. Monitor token usage and context window utilization
+```
 
 ## Integration with Main System
 
-The troubleshooting system is fully integrated with the main CrewAI Workflow Manager:
+### WebSocket Integration
+- **Real-time Updates**: Live progress streaming during test execution
+- **Structured Logging**: Color-coded log levels with timestamps
+- **Progress Tracking**: Visual progress indicators and status updates
+- **Error Reporting**: Detailed error information with stack traces
 
-- **WebSocket Integration** - Real-time test logging
-- **Configuration Sharing** - Uses main system configuration
-- **Result Storage** - Integrated with main results system
-- **Model Management** - Shares model detection and validation
+### Configuration Sharing
+- **Unified Configuration**: Uses main system configuration for consistency
+- **Dynamic Updates**: Reflects real-time configuration changes
+- **Model Discovery**: Shares model availability with main system
+- **Performance Data**: Integrates with system-wide performance tracking
+
+### Result Storage
+- **Integrated Storage**: Test results stored with main system results
+- **Export Functionality**: Consistent export formats across the system
+- **Historical Tracking**: Long-term storage of diagnostic data
+- **Performance Metrics**: Integration with system performance monitoring
+
+## Best Practices
+
+### 1. Regular System Health Monitoring
+- **Scheduled Diagnostics**: Run comprehensive tests regularly
+- **Performance Baselines**: Establish and monitor performance baselines
+- **Proactive Issue Detection**: Use predictive diagnostics to prevent problems
+- **Documentation Updates**: Keep troubleshooting documentation current
+
+### 2. Issue Resolution Workflow
+- **Systematic Approach**: Follow structured troubleshooting workflows
+- **Documentation**: Document all issues and resolutions
+- **Knowledge Sharing**: Contribute solutions to the community knowledge base
+- **Continuous Improvement**: Apply lessons learned to prevent future issues
+
+### 3. Performance Optimization
+- **Model Selection**: Use Manager Agent recommendations for optimal performance
+- **Resource Monitoring**: Track system resource utilization
+- **Configuration Tuning**: Optimize configurations based on diagnostic results
+- **Capacity Planning**: Use performance data for system scaling decisions
+
+### 4. Preventive Maintenance
+- **Regular Updates**: Keep system components updated
+- **Configuration Validation**: Regularly validate system configurations
+- **Performance Monitoring**: Continuous monitoring of system performance
+- **Backup and Recovery**: Maintain robust backup and recovery procedures
 
 ## Future Enhancements
 
 ### Planned Features:
-1. **Automated Issue Detection** - Proactive problem identification
-2. **Performance Monitoring** - Continuous system health tracking
-3. **Solution Recommendations** - AI-powered troubleshooting suggestions
-4. **Integration Testing** - End-to-end workflow validation
-5. **Remote Diagnostics** - Support for distributed deployments
+1. **Automated Issue Detection** - Proactive problem identification using AI
+2. **Performance Monitoring Dashboard** - Real-time system health visualization
+3. **Predictive Diagnostics** - Machine learning-based issue prediction
+4. **Advanced Analytics** - Comprehensive system performance analysis
+5. **Remote Diagnostics** - Support for distributed system troubleshooting
 
-### Contributing:
-- Add new test scripts to the main directory
-- Update the troubleshooting manager to integrate new tests
-- Document solutions in the wiki
-- Improve issue templates and reporting
+### Integration Roadmap:
+1. **AI-Powered Troubleshooting** - Use LLMs for intelligent issue resolution
+2. **Community Knowledge Base** - Crowdsourced troubleshooting solutions
+3. **Automated Fix Application** - Self-healing system capabilities
+4. **Advanced Monitoring** - Comprehensive system observability
+5. **Performance Optimization** - Automated performance tuning
 
-## Support
-
-For additional support:
-1. Check the troubleshooting wiki for existing solutions
-2. Run comprehensive diagnostic tests
-3. Export test results for analysis
-4. Report new issues using the standard template
-5. Consult the troubleshooting history for similar problems
-
-The troubleshooting system is designed to be self-service and comprehensive, providing users with the tools needed to diagnose and resolve issues independently while maintaining a knowledge base for the community.
+The troubleshooting system is designed to be comprehensive, user-friendly, and continuously evolving to meet the needs of the CrewAI Workflow Manager community.

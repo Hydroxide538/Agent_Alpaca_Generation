@@ -64,19 +64,34 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
                 return CrewAICompatibleLLM(model_spec, config)
             elif provider == "openai":
                 api_key = config.get('openai_api_key')
-                if not api_key:
-                    raise ValueError(f"OpenAI API key is required for model {model_spec}")
+                if not api_key or api_key == "your_openai_api_key_here":
+                    print(f"Warning: OpenAI API key not provided for {model_spec}. Falling back to default Ollama model.")
+                    # Fall back to default Ollama model
+                    fallback_spec = 'ollama:llama3.3:latest'
+                    return CrewAICompatibleLLM(fallback_spec, config)
                 return CrewAICompatibleLLM(model_spec, config) # Use wrapper for consistency
             elif provider == "claude": # Placeholder for Claude
                 api_key = config.get('claude_api_key') # Assuming a claude_api_key in config
-                if not api_key:
-                    raise ValueError(f"Claude API key is required for model {model_spec}")
+                if not api_key or api_key == "your_claude_api_key_here":
+                    print(f"Warning: Claude API key not provided for {model_spec}. Falling back to default Ollama model.")
+                    # Fall back to default Ollama model
+                    fallback_spec = 'ollama:llama3.3:latest'
+                    return CrewAICompatibleLLM(fallback_spec, config)
                 return CrewAICompatibleLLM(model_spec, config) # Use wrapper for consistency
             else:
-                raise ValueError(f"Unknown provider: {provider}")
+                print(f"Warning: Unknown provider {provider}. Falling back to default Ollama model.")
+                # Fall back to default Ollama model
+                fallback_spec = 'ollama:llama3.3:latest'
+                return CrewAICompatibleLLM(fallback_spec, config)
         except Exception as e:
-            print(f"Error creating LLM for {model_spec}: {str(e)}")
-            return None
+            print(f"Error creating LLM for {model_spec}: {str(e)}. Falling back to default Ollama model.")
+            # Fall back to default Ollama model
+            fallback_spec = 'ollama:llama3.3:latest'
+            try:
+                return CrewAICompatibleLLM(fallback_spec, config)
+            except Exception as fallback_error:
+                print(f"Error creating fallback LLM: {str(fallback_error)}")
+                return None
 
     @agent
     def manager_agent(self) -> Agent:
@@ -161,9 +176,11 @@ class LocalCrewaiWorkflowForSyntheticDataWithRagAndLlmOptionsCrew():
 
     @task
     def process_documents_task(self) -> Task:
+        # Only use basic FileReadTool to avoid OpenAI dependency issues
+        basic_tools = [FileReadTool()]
         return Task(
             config=self.tasks_config['process_documents_task'],
-            tools=[FileReadTool(), PDFSearchTool(), CSVSearchTool(), TXTSearchTool()], # Tools for document reading
+            tools=basic_tools,
             agent=self.document_processor(),
         )
 
