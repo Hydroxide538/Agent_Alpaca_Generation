@@ -8,7 +8,7 @@ import aiohttp
 from pathlib import Path
 
 from backend.llm_manager import LLMManager
-from backend.improved_alpaca_generator import ImprovedAlpacaGenerator, ExtractedFact, ExtractedConcept
+from backend.enhanced_alpaca_generator import EnhancedAlpacaGenerator, ExtractedFact, ExtractedConcept
 from backend.rag_system import RAGSystem
 from backend.manager_scoring_system import ManagerScoringSystem
 
@@ -24,7 +24,7 @@ class LLMShootoutManager:
         
         # Initialize components
         self.rag_system = RAGSystem(embedding_model="ollama:bge-m3:latest", reranking_model="ollama:bge-m3:latest")
-        self.generator = ImprovedAlpacaGenerator(self.llm_manager, self.rag_system)
+        self.generator = EnhancedAlpacaGenerator(self.llm_manager, self.rag_system)
         self.manager_scorer = ManagerScoringSystem(self.llm_manager, "ollama:llama3.3:latest")
         
         # Competition state

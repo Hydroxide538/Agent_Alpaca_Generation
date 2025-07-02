@@ -1,0 +1,30 @@
+{
+  "id": "544df82f-a7bd-4221-acb5-01519423ffde",
+  "title": "CrewAI Workflow Results",
+  "description": "CrewAI workflow execution results for 1 documents",
+  "type": "crewai_workflow",
+  "data": {
+    "crew_result": "{\n  \"LLM Performance Registry\": {\n    \"LLM-1\": {\n      \"Task 1 - Age Inquiry\": {\"Accuracy\": 0.9, \"Relevance\": 0.8, \"Clarity\": 0.7, \"Diversity\": 0.6, \"Consistency\": 0.5},\n      \"Task 2 - Demographic Concept\": {\"Accuracy\": 0.8, \"Relevance\": 0.7, \"Clarity\": 0.6, \"Diversity\": 0.5, \"Consistency\": 0.4}\n    },\n    \"LLM-2\": {\n      \"Task 1 - Age Inquiry\": {\"Accuracy\": 0.95, \"Relevance\": 0.9, \"Clarity\": 0.85, \"Diversity\": 0.8, \"Consistency\": 0.75},\n      \"Task 2 - Demographic Concept\": {\"Accuracy\": 0.9, \"Relevance\": 0.85, \"Clarity\": 0.8, \"Diversity\": 0.75, \"Consistency\": 0.7}\n    },\n    \"LLM-3\": {\n      \"Task 1 - Age Inquiry\": {\"Accuracy\": 0.92, \"Relevance\": 0.88, \"Clarity\": 0.82, \"Diversity\": 0.78, \"Consistency\": 0.72},\n      \"Task 2 - Demographic Concept\": {\"Accuracy\": 0.89, \"Relevance\": 0.84, \"Clarity\": 0.79, \"Diversity\": 0.74, \"Consistency\": 0.69}\n    }\n  }\n}",
+    "workflow_config": {
+      "data_generation_model": "ollama:gemma3:27b",
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:bge-m3:latest",
+      "openai_api_key": null,
+      "ollama_url": "http://host.docker.internal:11434",
+      "enable_gpu_optimization": true
+    },
+    "inputs": {
+      "documents": [
+        "uploads/3febc79e-5f01-4d47-8918-a281aa52a000.pdf"
+      ],
+      "workflow_type": "full",
+      "data_generation_model": "ollama:gemma3:27b",
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:bge-m3:latest",
+      "enable_gpu_optimization": true
+    },
+    "execution_timestamp": "2025-06-23T20:59:33.707062"
+  },
+  "created_at": "2025-06-23T20:59:33.707069",
+  "workflow_id": "15844178-d70b-42fd-881b-230cc447fed0"
+}

@@ -1,0 +1,51 @@
+{
+  "id": "782c558d-5692-4521-ae60-43fbd279300c",
+  "title": "Enhanced RAG Implementation Results",
+  "description": "RAG implementation with embeddings and retrieval for 1 documents",
+  "type": "rag_implementation",
+  "data": {
+    "processing_results": {
+      "processed_documents": [
+        {
+          "document_id": "3febc79e-5f01-4d47-8918-a281aa52a000.pdf",
+          "path": "uploads/3febc79e-5f01-4d47-8918-a281aa52a000.pdf",
+          "chunks_count": 154,
+          "text_length": 119307
+        }
+      ],
+      "total_chunks": 154,
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "vector_db_status": "active"
+    },
+    "retrieval_tests": [
+      {
+        "query": "What are the main topics discussed?",
+        "retrieved_chunks": 3,
+        "success": true
+      },
+      {
+        "query": "What information is provided in the documents?",
+        "retrieved_chunks": 3,
+        "success": true
+      },
+      {
+        "query": "What are the key points mentioned?",
+        "retrieved_chunks": 3,
+        "success": true
+      }
+    ],
+    "rag_statistics": {
+      "total_chunks": 1232,
+      "vector_db": "ChromaDB",
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:bge-m3:latest"
+    },
+    "implementation_timestamp": "2025-06-23T21:18:00.499784",
+    "models_used": {
+      "embedding_model": "ollama:snowflake-arctic-embed2:latest",
+      "reranking_model": "ollama:bge-m3:latest"
+    }
+  },
+  "created_at": "2025-06-23T21:18:00.499792",
+  "workflow_id": "15844178-d70b-42fd-881b-230cc447fed0"
+}

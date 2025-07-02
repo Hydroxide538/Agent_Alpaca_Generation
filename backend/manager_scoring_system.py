@@ -7,7 +7,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional
 from backend.llm_manager import LLMManager
-from backend.improved_alpaca_generator import ExtractedFact, ExtractedConcept
+from backend.enhanced_alpaca_generator import ExtractedFact, ExtractedConcept
 
 logger = logging.getLogger(__name__)
 

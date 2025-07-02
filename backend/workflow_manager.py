@@ -14,7 +14,7 @@ from local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options.crew impo
 from backend.models import WorkflowConfig, WorkflowStatus, WorkflowProgress, WorkflowResult
 from backend.llm_manager import LLMManager
 from backend.rag_system import RAGSystem
-from backend.improved_alpaca_generator import ImprovedAlpacaGenerator
+from backend.enhanced_alpaca_generator import EnhancedAlpacaGenerator
 from backend.manager_agent import ManagerAgent
 
 logger = logging.getLogger(__name__)
@@ -321,8 +321,8 @@ class WorkflowManager:
                 ollama_url=config.ollama_url
             )
             
-            # Initialize improved Alpaca generator
-            alpaca_generator = ImprovedAlpacaGenerator(self.llm_manager, rag_system)
+            # Initialize enhanced Alpaca generator
+            alpaca_generator = EnhancedAlpacaGenerator(self.llm_manager, rag_system)
             
             # Convert WorkflowConfig to dict for compatibility
             config_dict = {

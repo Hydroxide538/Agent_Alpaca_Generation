@@ -1,6 +1,6 @@
 # CrewAI Workflow Manager for Synthetic Data & RAG
 
-A comprehensive web-based interface for managing CrewAI workflows focused on synthetic data generation and RAG (Retrieval-Augmented Generation) implementation. This project provides a modern frontend and robust backend to leverage CrewAI's multi-agent capabilities with support for multiple LLM providers and an advanced LLM competition system.
+A comprehensive web-based interface for managing CrewAI workflows focused on synthetic data generation and RAG (Retrieval-Augmented Generation) implementation. This project provides a modern frontend and robust backend to leverage CrewAI's multi-agent capabilities with support for multiple LLM providers, advanced document management, and an intelligent LLM competition system.
 
 ## 🚀 Features
 
@@ -9,21 +9,37 @@ A comprehensive web-based interface for managing CrewAI workflows focused on syn
 - **Multi-LLM Support**: Compatible with OpenAI GPT models and local Ollama models
 - **Docker Integration**: Full support for Ollama running in Docker containers
 - **Dynamic Configuration**: Real-time model loading and URL configuration
-- **Document Processing**: Upload and process PDF, CSV, and TXT files with token counting
+- **Enhanced Document Processing**: Upload multiple documents, organize in collections, and process entire directories
 - **Real-time Updates**: WebSocket-based live progress tracking
 - **GPU Optimization**: Built-in support for dual RTX 4090 GPU setups
+
+### Advanced Document Management
+- **Multi-Document Upload**: Upload multiple files simultaneously with drag-and-drop support
+- **Document Collections**: Organize documents into named collections for better management
+- **Directory Upload**: Upload entire directories with recursive file processing
+- **Enhanced File Support**: Support for PDF, CSV, TXT, MD, JSON, and XML files
+- **Token Analysis**: Comprehensive token counting and context window analysis
+- **File Validation**: Automatic file type validation and size checking
+
+### Enhanced Alpaca Dataset Generation
+- **Stanford Guide Implementation**: Follows Stanford Alpaca CrewAI Workflow Guide best practices
+- **Quality Gate System**: Multi-stage quality control with content validation and diversity checking
+- **ROUGE Similarity Detection**: Advanced similarity detection to prevent duplicate instructions
+- **Task Categorization**: Intelligent categorization of instructions for balanced datasets
+- **Batch Processing**: Efficient batch generation with quality metrics tracking
+- **Context-Aware Generation**: Uses document context to inspire diverse, high-quality instructions
 
 ### Advanced LLM Management
 - **Manager Agent System**: Intelligent LLM selection based on performance data
 - **LLM Shootout Arena**: Competitive evaluation system for model performance
 - **Performance Tracking**: Automatic scoring and performance history
 - **Dynamic Model Selection**: Real-time model discovery and categorization
-- **Token Analysis**: Comprehensive token counting and context window analysis
-- **Model Testing**: Built-in connectivity and performance testing
+- **Enhanced Model Testing**: Built-in connectivity and performance testing
+- **Quality Scoring**: Manager LLM-based objective evaluation system
 
 ### Workflow Types
 - **Full Workflow**: Complete pipeline from document processing to RAG implementation
-- **Data Generation Only**: Focus on synthetic data creation in Alpaca format
+- **Data Generation Only**: Focus on synthetic data creation in Alpaca format with quality control
 - **RAG Implementation Only**: Implement retrieval and reranking capabilities
 - **Model Testing**: Comprehensive model connectivity and performance testing
 
@@ -33,6 +49,22 @@ A comprehensive web-based interface for managing CrewAI workflows focused on syn
 - **Export Diagnostics**: Download complete diagnostic reports for support
 - **Troubleshooting Wiki**: Comprehensive knowledge base with issue history
 - **Enhanced LLM Evaluation**: Advanced model evaluation with thinking model support
+
+## 📚 Documentation
+
+This project includes comprehensive documentation across multiple areas:
+
+### Main Documentation
+- **[Setup Guide](SETUP_GUIDE.md)** - Detailed installation and configuration instructions
+- **[Ollama-Only Setup](OLLAMA_ONLY_SETUP.md)** - Specialized guide for Ollama-only configurations
+
+### Knowledge Base
+- **[Stanford Alpaca Guide](knowledge/Stanford_Alpaca_CrewAI_Workflow_Guide.md)** - Best practices for Alpaca dataset generation
+- **[Knowledge Wiki](knowledge/wiki/README.md)** - Comprehensive technical documentation and troubleshooting guides
+
+### Troubleshooting Documentation
+- **[Troubleshooting Guide](troubleshooting/README.md)** - System troubleshooting and diagnostic tools
+- **[Troubleshooting Wiki](troubleshooting/wiki/index.html)** - Interactive troubleshooting knowledge base
 
 ## 🏗️ Architecture
 
@@ -56,13 +88,15 @@ A comprehensive web-based interface for managing CrewAI workflows focused on syn
 - **ManagerAgent**: Intelligent LLM selection based on performance data
 - **TroubleshootingManager**: Comprehensive diagnostic and testing system
 - **WebSocketManager**: Real-time communication and progress updates
+- **EnhancedDocumentManager**: Advanced document and collection management
 
 #### Advanced Features
-- **ImprovedAlpacaGenerator**: Enhanced synthetic data generation with structured extraction
+- **EnhancedAlpacaGenerator**: Stanford Guide-compliant synthetic data generation with quality control
 - **RAGSystem**: Complete retrieval-augmented generation implementation
 - **ManagerScoringSystem**: Intelligent scoring system for model evaluation
 - **TokenCounter**: Comprehensive token analysis and context window management
 - **SafeLLMWrapper**: CrewAI-compatible LLM wrapper with error handling
+- **QualityGateSystem**: Multi-stage quality control for dataset generation
 
 ### CrewAI Agents
 - **Manager Agent**: Orchestrates workflow and selects optimal LLMs dynamically
@@ -93,20 +127,29 @@ A comprehensive web-based interface for managing CrewAI workflows focused on syn
    cd local_crewai_workflow_for_synthetic_data_with_rag_and_llm_options
    ```
 
-2. **Run the startup script**:
+2. **One-Command Startup**:
    ```bash
+   # Linux/macOS
    python start_server.py
+   
+   # Windows
+   start_server.bat
    ```
 
-   This will:
-   - Check Python version compatibility
-   - Install all required dependencies
-   - Create necessary directories
-   - Check Ollama status (if applicable)
-   - Start the web server
+   This comprehensive startup script will:
+   - ✅ Check Python version compatibility
+   - ✅ Install all required dependencies (including GraphRAG)
+   - ✅ Create necessary directories
+   - ✅ Start Neo4j database (if Docker available)
+   - ✅ Check Ollama status and pull required models
+   - ✅ Start the complete system with all components
 
 3. **Access the application**:
-   Open your browser and navigate to `http://localhost:8000`
+   - **Main Interface**: `http://localhost:8000`
+   - **Troubleshooting**: `http://localhost:8000/troubleshooting`
+   - **LLM Shootout**: `http://localhost:8000/llm-shootout`
+   - **Neo4j Browser**: `http://localhost:7474` (neo4j/password)
+   - **API Docs**: `http://localhost:8000/docs`
 
 ### Manual Installation
 
@@ -125,6 +168,8 @@ A comprehensive web-based interface for managing CrewAI workflows focused on syn
    ```bash
    uvicorn backend.app:app --host 0.0.0.0 --port 8000
    ```
+
+For detailed installation instructions, see the **[Setup Guide](SETUP_GUIDE.md)**.
 
 ## 🐳 Docker Setup for Ollama
 
@@ -172,22 +217,7 @@ docker run -d \
   ollama/ollama:latest
 ```
 
-### Pull Models in Docker
-
-```bash
-# Access the container
-docker exec -it ollama bash
-
-# Pull models
-ollama pull llama3.3
-ollama pull mistral
-ollama pull bge-m3
-ollama pull phi3
-ollama pull gemma:7b
-
-# Exit container
-exit
-```
+For complete Docker setup instructions, see the **[Ollama-Only Setup Guide](OLLAMA_ONLY_SETUP.md)**.
 
 ## 🔧 Configuration
 
@@ -224,7 +254,39 @@ The application supports dynamic Ollama URL configuration:
 
 ## 🎯 Usage
 
-### 1. Configure Models
+### 1. Enhanced Document Management
+
+#### Upload Multiple Documents
+- **Drag & Drop**: Drag multiple files directly into the upload area
+- **File Selection**: Use the file picker to select multiple documents
+- **Supported Formats**: PDF, CSV, TXT, MD, JSON, XML
+- **Automatic Validation**: Files are automatically validated for type and size
+
+#### Document Collections
+- **Create Collections**: Organize related documents into named collections
+- **Collection Management**: View, edit, and delete document collections
+- **Batch Operations**: Add multiple documents to collections at once
+
+#### Directory Upload
+- **Recursive Processing**: Upload entire directories with subdirectories
+- **File Filtering**: Apply glob patterns to filter specific file types
+- **Batch Processing**: Process hundreds of files efficiently
+
+### 2. Enhanced Alpaca Dataset Generation
+
+#### Stanford Guide Implementation
+- **Quality Gates**: Multi-stage quality control system
+- **Diversity Checking**: ROUGE-based similarity detection
+- **Task Categorization**: Balanced dataset with diverse instruction types
+- **Context-Aware**: Uses document content to inspire high-quality instructions
+
+#### Quality Control Features
+- **Content Validation**: Checks for appropriate content and format
+- **Length Requirements**: Ensures optimal instruction and output lengths
+- **Blacklist Filtering**: Removes inappropriate or non-text tasks
+- **Coherence Analysis**: Validates logical consistency
+
+### 3. Model Management
 
 #### Manager Agent Configuration
 - **Manager Model**: Select the LLM that will orchestrate the workflow and make intelligent model selections
@@ -240,28 +302,13 @@ The application supports dynamic Ollama URL configuration:
 - **Reranking Model**: Optional model for result reranking
 - **API Keys**: Provide OpenAI API key if using OpenAI models
 
-### 2. Model Management
-
-- **Auto-Discovery**: Models are automatically loaded when you change the Ollama URL
-- **Model Categorization**: Models are intelligently categorized for different use cases
-- **Performance Tracking**: System tracks model performance across different tasks
-- **Model Testing**: Test connectivity and performance before running workflows
-
-### 3. Upload Documents
-
-- Supported formats: PDF, CSV, TXT
-- Multiple file upload supported
-- Drag and drop interface
-- File validation and preview
-- **Token Analysis**: Automatic token counting and context window analysis
-
 ### 4. Run Workflows
 
 #### Full Workflow
 Executes all steps: document processing → model selection → data generation → RAG implementation → optimization
 
 #### Partial Workflows
-- **Data Generation Only**: Focus on synthetic data creation in Alpaca format
+- **Data Generation Only**: Focus on synthetic data creation in Alpaca format with quality control
 - **RAG Implementation Only**: Implement retrieval and reranking
 - **Model Testing**: Test model connectivity and performance
 
@@ -287,37 +334,25 @@ Executes all steps: document processing → model selection → data generation 
 - Result history and management
 - Token statistics and analysis
 
-### 7. System Troubleshooting
-
-The application includes a comprehensive troubleshooting interface accessible via the **"Troubleshooting"** button.
-
-#### Diagnostic Tests Available:
-
-- **API Health Check**: Tests backend connectivity, health endpoints, and Ollama server accessibility
-- **Docker Ollama Test**: Validates Docker Ollama container connectivity and model availability
-- **Model Debug**: Deep analysis of specific models including functionality testing and performance metrics
-- **Workflow Model Test**: Validates complete workflow configuration and model compatibility
-- **LLM Manager Debug**: Comprehensive debugging of the LLM management system
-- **CrewAI Workflow Test**: Tests complete CrewAI workflow execution
-- **Ollama Workflow Test**: Tests Ollama workflow configuration with dynamic model selection
-- **Enhanced LLM Evaluation**: Advanced model evaluation with thinking model support
-
-#### Troubleshooting Features:
-
-- **Real-time Logs**: Live streaming of test output with color-coded severity levels
-- **Test Results View**: Structured results with pass/fail statistics and detailed error information
-- **Individual or Batch Testing**: Run specific tests or execute all diagnostics at once
-- **Export Diagnostics**: Download complete diagnostic reports in JSON format for support
-- **Visual Status Indicators**: Clear visual feedback on test progress and results
-- **Configurable Parameters**: Customize test parameters like model names and URLs
-- **Troubleshooting Wiki**: Comprehensive knowledge base with issue history and solutions
-
 ## 🔍 API Endpoints
+
+### Enhanced Document Management
+- `POST /api/documents/upload` - Enhanced multi-file upload with collections
+- `POST /api/documents/upload-directory` - Directory upload functionality
+- `GET /api/documents` - Get all uploaded documents with enhanced metadata
+- `GET /api/documents/{document_id}` - Get specific document by ID
+- `DELETE /api/documents/{document_id}` - Delete specific document
+- `POST /api/collections` - Create new document collection
+- `GET /api/collections` - Get all document collections
+- `GET /api/collections/{collection_id}` - Get specific collection
+- `DELETE /api/collections/{collection_id}` - Delete collection
+- `POST /api/collections/{collection_id}/documents` - Add documents to collection
+- `DELETE /api/documents/clear-all` - Clear all documents and collections
 
 ### Core Endpoints
 - `GET /` - Serve frontend interface
 - `GET /health` - Health check
-- `POST /upload-documents` - Upload documents with token analysis
+- `POST /upload-documents` - Legacy document upload (backward compatibility)
 - `POST /start-workflow` - Start workflow execution
 - `POST /stop-workflow/{workflow_id}` - Stop running workflow
 - `POST /test-models` - Test model connectivity
@@ -331,7 +366,7 @@ The application includes a comprehensive troubleshooting interface accessible vi
 - `GET /view-result/{result_id}` - View results
 - `GET /list-results` - List all results
 - `DELETE /clear-results` - Clear all results
-- `DELETE /clear-documents` - Clear all documents and reset system
+- `DELETE /clear-documents` - Clear all documents and reset system (legacy)
 
 ### Token Analysis
 - `GET /document-tokens` - Get token statistics for all uploaded documents
@@ -389,7 +424,8 @@ python start_server.py --reload
 │   ├── workflow_manager.py   # Workflow execution
 │   ├── websocket_manager.py  # WebSocket handling
 │   ├── troubleshooting.py    # Diagnostic test manager
-│   ├── improved_alpaca_generator.py # Enhanced data generation
+│   ├── enhanced_alpaca_generator.py # Enhanced data generation with quality control
+│   ├── enhanced_document_manager.py # Advanced document and collection management
 │   ├── rag_system.py         # RAG implementation
 │   ├── safe_llm_wrapper.py   # CrewAI-compatible LLM wrapper
 │   ├── token_counter.py      # Token analysis and counting
@@ -406,8 +442,10 @@ python start_server.py --reload
 │   ├── wiki/                 # Troubleshooting wiki interface
 │   └── templates/            # Issue templates
 ├── knowledge/                # Knowledge management
+│   ├── Stanford_Alpaca_CrewAI_Workflow_Guide.md # Best practices guide
 │   └── wiki/                 # Comprehensive documentation
 ├── uploads/                  # Uploaded documents
+├── collections/              # Document collections metadata
 ├── results/                  # Workflow results
 ├── vector_db/                # Vector database storage
 └── logs/                     # Application logs
@@ -429,56 +467,17 @@ python start_server.py --reload
    - **Network**: For Docker, use `http://host.docker.internal:11434` on Windows/Mac
    - **Models**: Verify models are available: `docker exec ollama ollama list`
 
-3. **Docker Ollama Issues**:
-   ```bash
-   # Check container status
-   docker ps -a | grep ollama
-   
-   # View container logs
-   docker logs ollama
-   
-   # Restart container
-   docker restart ollama
-   
-   # Check if port is accessible
-   curl http://localhost:11434/api/tags
-   ```
+3. **Document upload issues**:
+   - Check file format is supported (PDF, CSV, TXT, MD, JSON, XML)
+   - Verify file size is under 100MB
+   - Ensure sufficient disk space for uploads and processing
 
-4. **OpenAI API errors**:
-   - Verify API key is correct
-   - Check API quota and billing
-   - Ensure model names are valid
+4. **Quality gate failures**:
+   - Check document content quality and length
+   - Verify model responses are properly formatted
+   - Review generation parameters and thresholds
 
-5. **GPU not detected in Docker**:
-   - Install NVIDIA Container Toolkit
-   - Verify GPU access: `docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi`
-
-6. **Models not loading**:
-   - Check Ollama URL configuration
-   - Verify network connectivity to Ollama instance
-   - Use "Refresh Models" button to reload
-
-7. **LLM Shootout Issues**:
-   - Ensure at least 2 text generation models are available
-   - Check document upload status
-   - Verify model connectivity before starting competition
-
-### Logs and Debugging
-
-- Check browser console for frontend errors
-- Server logs are displayed in terminal
-- Enable debug mode: `LOG_LEVEL=DEBUG` in `.env`
-- Docker logs: `docker logs ollama`
-- Use integrated troubleshooting interface for comprehensive diagnostics
-
-### Network Configuration
-
-For different deployment scenarios:
-
-- **Same machine**: `http://localhost:11434`
-- **Docker Desktop (Windows/Mac)**: `http://host.docker.internal:11434`
-- **Docker on Linux**: `http://172.17.0.1:11434` or container IP
-- **Remote server**: `http://server-ip:11434`
+For comprehensive troubleshooting, see the **[Troubleshooting Guide](troubleshooting/README.md)** and use the integrated troubleshooting interface accessible via the **"Troubleshooting"** button in the web interface.
 
 ## 🤝 Contributing
 
@@ -498,6 +497,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [FastAPI](https://fastapi.tiangolo.com) - Web framework
 - [Ollama](https://ollama.ai) - Local LLM support
 - [Bootstrap](https://getbootstrap.com) - UI framework
+- [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca) - Inspiration for dataset generation best practices
 
 ## 📞 Support
 
@@ -505,9 +505,10 @@ For support, questions, or feedback:
 - Create an issue in the GitHub repository
 - Use the integrated troubleshooting system for diagnostics
 - Check the troubleshooting wiki for common solutions
+- Review the comprehensive documentation in the knowledge base
 - Check the [CrewAI documentation](https://docs.crewai.com)
 - Join the [CrewAI Discord](https://discord.com/invite/X4JWnZnxPb)
 
 ---
 
-**Ready to create powerful AI workflows with intelligent LLM management and competitive model evaluation!** 🚀🏆
+**Ready to create powerful AI workflows with intelligent LLM management, enhanced document processing, and high-quality Alpaca dataset generation!** 🚀🏆📚

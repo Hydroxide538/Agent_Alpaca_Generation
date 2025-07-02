@@ -25,6 +25,9 @@ from backend.websocket_manager import WebSocketManager
 from backend.troubleshooting import TroubleshootingManager
 from backend.token_counter import TokenCounter
 from backend.llm_shootout_manager import LLMShootoutManager
+from backend.enhanced_document_manager import EnhancedDocumentManager
+from backend.graph_rag_system import GraphRAGSystem
+from backend.cleanup_manager import CleanupManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -50,18 +53,32 @@ troubleshooting_path = os.path.join(project_root, "troubleshooting")
 app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 app.mount("/troubleshooting", StaticFiles(directory=troubleshooting_path), name="troubleshooting")
 
+# Storage directories
+UPLOAD_DIR = "uploads"
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
 # Global managers
 llm_manager = LLMManager()
 workflow_manager = WorkflowManager()
 websocket_manager = WebSocketManager()
 troubleshooting_manager = TroubleshootingManager()
 llm_shootout_manager = LLMShootoutManager()
+enhanced_document_manager = EnhancedDocumentManager(UPLOAD_DIR, "collections")
 
-# Storage directories
-UPLOAD_DIR = "uploads"
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(RESULTS_DIR, exist_ok=True)
+# Initialize GraphRAG system
+graph_rag_system = GraphRAGSystem(llm_manager)
+cleanup_manager = CleanupManager(
+    upload_dir=UPLOAD_DIR,
+    backend_upload_dir=os.path.join(os.path.dirname(__file__), "uploads"),
+    vector_db_dir="vector_db",
+    backend_vector_db_dir=os.path.join(os.path.dirname(__file__), "vector_db"),
+    results_dir="results",
+    backend_results_dir=RESULTS_DIR,
+    neo4j_manager=graph_rag_system.neo4j_manager,
+    graph_rag_system=graph_rag_system
+)
 
 @app.get("/")
 async def serve_frontend():
@@ -74,61 +91,173 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+# Enhanced Document Management Endpoints
+
+class CollectionRequest(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class DirectoryUploadRequest(BaseModel):
+    directory_path: str
+    collection_name: Optional[str] = None
+    recursive: bool = True
+    file_filter: Optional[str] = None
+
+@app.post("/api/documents/upload")
+async def upload_documents_enhanced(files: List[UploadFile] = File(...), collection_name: Optional[str] = None):
+    """Enhanced document upload with collection support"""
+    try:
+        result = await enhanced_document_manager.upload_files(files, collection_name)
+        return result
+    except Exception as e:
+        logger.error(f"Enhanced document upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.post("/api/documents/upload-directory")
+async def upload_directory(request: DirectoryUploadRequest):
+    """Upload all files from a directory"""
+    try:
+        result = await enhanced_document_manager.upload_directory(
+            request.directory_path,
+            request.collection_name,
+            request.recursive,
+            request.file_filter
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Directory upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Directory upload failed: {str(e)}")
+
+@app.get("/api/documents")
+async def get_all_documents_enhanced():
+    """Get all uploaded documents with enhanced metadata"""
+    try:
+        documents = await enhanced_document_manager.get_all_documents()
+        return {"documents": documents, "count": len(documents)}
+    except Exception as e:
+        logger.error(f"Failed to get documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get documents: {str(e)}")
+
+@app.get("/api/documents/{document_id}")
+async def get_document_by_id(document_id: str):
+    """Get a specific document by ID"""
+    try:
+        document = await enhanced_document_manager.get_document_by_id(document_id)
+        if document:
+            return document
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document: {str(e)}")
+
+@app.delete("/api/documents/{document_id}")
+async def delete_document(document_id: str):
+    """Delete a specific document"""
+    try:
+        success = await enhanced_document_manager.delete_document(document_id)
+        if success:
+            return {"status": "success", "message": "Document deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+@app.post("/api/collections")
+async def create_collection(request: CollectionRequest):
+    """Create a new document collection"""
+    try:
+        collection = await enhanced_document_manager.create_collection(request.name, request.description)
+        await enhanced_document_manager._save_collection(collection)
+        return collection.to_dict()
+    except Exception as e:
+        logger.error(f"Failed to create collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create collection: {str(e)}")
+
+@app.get("/api/collections")
+async def get_all_collections():
+    """Get all document collections"""
+    try:
+        collections = await enhanced_document_manager.get_collections()
+        return {"collections": collections, "count": len(collections)}
+    except Exception as e:
+        logger.error(f"Failed to get collections: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get collections: {str(e)}")
+
+@app.get("/api/collections/{collection_id}")
+async def get_collection_by_id(collection_id: str):
+    """Get a specific collection by ID"""
+    try:
+        collection = await enhanced_document_manager.get_collection(collection_id)
+        if collection:
+            return collection
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get collection: {str(e)}")
+
+@app.delete("/api/collections/{collection_id}")
+async def delete_collection(collection_id: str, delete_files: bool = False):
+    """Delete a collection and optionally its files"""
+    try:
+        success = await enhanced_document_manager.delete_collection(collection_id, delete_files)
+        if success:
+            return {"status": "success", "message": "Collection deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete collection: {str(e)}")
+
+@app.post("/api/collections/{collection_id}/documents")
+async def add_documents_to_collection(collection_id: str, document_ids: List[str]):
+    """Add existing documents to a collection"""
+    try:
+        success = await enhanced_document_manager.add_documents_to_collection(collection_id, document_ids)
+        if success:
+            return {"status": "success", "message": "Documents added to collection successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to add documents to collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to add documents to collection: {str(e)}")
+
+@app.delete("/api/documents/clear-all")
+async def clear_all_documents_enhanced():
+    """Clear all documents and collections using enhanced manager"""
+    try:
+        result = await enhanced_document_manager.clear_all_documents()
+        return result
+    except Exception as e:
+        logger.error(f"Failed to clear all documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear all documents: {str(e)}")
+
+# Legacy document upload endpoint (for backward compatibility)
 @app.post("/upload-documents")
 async def upload_documents(files: List[UploadFile] = File(...)):
-    """Upload documents for processing"""
+    """Upload documents for processing (legacy endpoint)"""
     try:
-        uploaded_files = []
-        token_counter = TokenCounter()
+        # Use enhanced document manager for consistency
+        result = await enhanced_document_manager.upload_files(files)
         
-        for file in files:
-            # Validate file type
-            if not file.filename.lower().endswith(('.pdf', '.csv', '.txt')):
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Unsupported file type: {file.filename}"
-                )
-            
-            # Generate unique filename
-            file_id = str(uuid.uuid4())
-            file_extension = os.path.splitext(file.filename)[1]
-            unique_filename = f"{file_id}{file_extension}"
-            file_path = os.path.join(UPLOAD_DIR, unique_filename)
-            
-            # Save file
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            
-            # Count tokens in the uploaded file
-            token_stats = token_counter.count_tokens_in_file(file_path)
-            
-            uploaded_files.append({
-                "id": file_id,
-                "original_name": file.filename,
-                "filename": unique_filename,
-                "path": file_path,
-                "size": os.path.getsize(file_path),
-                "type": file_extension[1:].upper(),
-                "token_count": token_stats.get("token_count", 0),
-                "character_count": token_stats.get("character_count", 0),
-                "word_count": token_stats.get("word_count", 0),
-                "encoding": token_stats.get("encoding", "unknown")
-            })
-        
-        # Calculate total token count
-        total_tokens = sum(doc.get("token_count", 0) for doc in uploaded_files)
-        
-        logger.info(f"Successfully uploaded {len(uploaded_files)} files with {total_tokens} total tokens")
+        # Format response for backward compatibility
         return {
-            "documents": uploaded_files, 
-            "count": len(uploaded_files),
-            "total_tokens": total_tokens,
-            "token_summary": {
-                "total_tokens": total_tokens,
-                "total_characters": sum(doc.get("character_count", 0) for doc in uploaded_files),
-                "total_words": sum(doc.get("word_count", 0) for doc in uploaded_files),
-                "encoding": token_counter.encoding_name
-            }
+            "documents": result["documents"], 
+            "count": result["count"],
+            "total_tokens": result["total_tokens"],
+            "token_summary": result["token_summary"]
         }
         
     except Exception as e:
@@ -714,6 +843,207 @@ async def shootout_websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Shootout WebSocket error: {str(e)}")
         llm_shootout_manager.remove_progress_callback(shootout_callback)
+
+# GraphRAG endpoints
+class GraphRAGQueryRequest(BaseModel):
+    query: str
+    max_results: int = 5
+    use_graph_expansion: bool = True
+    graph_depth: int = 2
+
+@app.post("/api/graphrag/connect")
+async def connect_graphrag():
+    """Connect to GraphRAG system (Neo4j)"""
+    try:
+        success = await graph_rag_system.connect()
+        if success:
+            return {"status": "connected", "message": "GraphRAG system connected successfully"}
+        else:
+            return {"status": "failed", "message": "Failed to connect to Neo4j database"}
+    except Exception as e:
+        logger.error(f"GraphRAG connection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"GraphRAG connection failed: {str(e)}")
+
+@app.post("/api/graphrag/process-document/{document_id}")
+async def process_document_graphrag(document_id: str):
+    """Process a document through GraphRAG pipeline"""
+    try:
+        # Find the document
+        document_path = None
+        if os.path.exists(UPLOAD_DIR):
+            for filename in os.listdir(UPLOAD_DIR):
+                if filename.startswith(document_id):
+                    document_path = os.path.join(UPLOAD_DIR, filename)
+                    break
+        
+        if not document_path or not os.path.exists(document_path):
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Read document content
+        with open(document_path, 'r', encoding='utf-8') as f:
+            document_text = f.read()
+        
+        # Process through GraphRAG
+        result = await graph_rag_system.process_document(
+            document_text, 
+            document_id,
+            {"filename": os.path.basename(document_path)}
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GraphRAG document processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+
+@app.post("/api/graphrag/query")
+async def query_graphrag(request: GraphRAGQueryRequest):
+    """Query the GraphRAG system"""
+    try:
+        result = await graph_rag_system.query(
+            request.query,
+            request.max_results,
+            request.use_graph_expansion,
+            request.graph_depth
+        )
+        
+        return {
+            "answer": result.answer,
+            "confidence": result.confidence,
+            "sources": result.sources,
+            "reasoning_path": result.reasoning_path,
+            "quality_score": result.quality_score,
+            "processing_time": result.processing_time,
+            "graph_entities": len(result.graph_context.get('entities', {})),
+            "graph_relationships": len(result.graph_context.get('relationships', [])),
+            "vector_documents": len(result.vector_context)
+        }
+        
+    except Exception as e:
+        logger.error(f"GraphRAG query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"GraphRAG query failed: {str(e)}")
+
+@app.get("/api/graphrag/statistics")
+async def get_graphrag_statistics():
+    """Get GraphRAG system statistics"""
+    try:
+        stats = await graph_rag_system.get_graph_statistics()
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get GraphRAG statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get GraphRAG statistics: {str(e)}")
+
+@app.get("/api/graphrag/visualization")
+async def get_graph_visualization(limit: int = 500):
+    """Get graph visualization data"""
+    try:
+        data = await graph_rag_system.get_visualization_data(limit)
+        return data
+    except Exception as e:
+        logger.error(f"Failed to get graph visualization data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get graph visualization data: {str(e)}")
+
+@app.get("/api/graphrag/health")
+async def graphrag_health_check():
+    """GraphRAG system health check"""
+    try:
+        health = await graph_rag_system.health_check()
+        return health
+    except Exception as e:
+        logger.error(f"GraphRAG health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"GraphRAG health check failed: {str(e)}")
+
+# Enhanced Cleanup endpoints
+@app.get("/api/cleanup/status")
+async def get_cleanup_status():
+    """Get current cleanup status"""
+    try:
+        status = await cleanup_manager.get_cleanup_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get cleanup status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cleanup status: {str(e)}")
+
+@app.get("/api/cleanup/estimate/{operation}")
+async def estimate_cleanup_impact(operation: str):
+    """Estimate the impact of a cleanup operation"""
+    try:
+        valid_operations = ['clear_queued_documents', 'fresh_start_cleanup', 'clear_graph_only', 'optimize_graph']
+        if operation not in valid_operations:
+            raise HTTPException(status_code=400, detail=f"Invalid operation. Must be one of: {valid_operations}")
+        
+        impact = await cleanup_manager.estimate_cleanup_impact(operation)
+        return impact
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to estimate cleanup impact: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to estimate cleanup impact: {str(e)}")
+
+@app.post("/api/cleanup/clear-queued-documents")
+async def clear_queued_documents():
+    """Clear only uploaded documents waiting for processing"""
+    try:
+        result = await cleanup_manager.clear_queued_documents()
+        return result
+    except Exception as e:
+        logger.error(f"Failed to clear queued documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear queued documents: {str(e)}")
+
+@app.post("/api/cleanup/fresh-start")
+async def fresh_start_cleanup():
+    """Complete system reset for new dataset generation"""
+    try:
+        result = await cleanup_manager.fresh_start_cleanup()
+        return result
+    except Exception as e:
+        logger.error(f"Fresh start cleanup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Fresh start cleanup failed: {str(e)}")
+
+@app.post("/api/cleanup/clear-graph-only")
+async def clear_graph_only():
+    """Clear only the graph database, preserving documents and results"""
+    try:
+        result = await cleanup_manager.clear_graph_only()
+        return result
+    except Exception as e:
+        logger.error(f"Graph-only cleanup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Graph-only cleanup failed: {str(e)}")
+
+@app.post("/api/cleanup/optimize-graph")
+async def optimize_graph():
+    """Optimize the graph database without full rebuild"""
+    try:
+        result = await cleanup_manager.optimize_graph()
+        return result
+    except Exception as e:
+        logger.error(f"Graph optimization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Graph optimization failed: {str(e)}")
+
+# Startup event to initialize GraphRAG
+@app.on_event("startup")
+async def startup_event():
+    """Initialize GraphRAG system on startup"""
+    try:
+        logger.info("Initializing GraphRAG system...")
+        success = await graph_rag_system.connect()
+        if success:
+            logger.info("GraphRAG system initialized successfully")
+        else:
+            logger.warning("GraphRAG system initialization failed - will use traditional RAG only")
+    except Exception as e:
+        logger.error(f"Failed to initialize GraphRAG system: {str(e)}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    try:
+        await graph_rag_system.disconnect()
+        logger.info("GraphRAG system disconnected")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
