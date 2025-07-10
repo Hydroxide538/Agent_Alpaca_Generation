@@ -317,6 +317,139 @@ async def get_workflow_status(workflow_id: str):
         logger.error(f"Failed to get workflow status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get workflow status: {str(e)}")
 
+# Enhanced Status API Endpoints
+
+@app.get("/api/workflow/{workflow_id}/detailed-status")
+async def get_detailed_workflow_status(workflow_id: str):
+    """Get detailed workflow status with enhanced metrics"""
+    try:
+        detailed_status = workflow_manager.status_tracker.get_workflow_status(workflow_id)
+        if detailed_status:
+            return detailed_status.dict()
+        else:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+    except Exception as e:
+        logger.error(f"Failed to get detailed workflow status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get detailed workflow status: {str(e)}")
+
+@app.get("/api/workflow/{workflow_id}/activity-logs")
+async def get_workflow_activity_logs(workflow_id: str, limit: int = 100):
+    """Get activity logs for a specific workflow"""
+    try:
+        logs = workflow_manager.status_tracker.get_recent_activity_logs(limit, workflow_id)
+        return {"logs": [log.dict() for log in logs], "count": len(logs)}
+    except Exception as e:
+        logger.error(f"Failed to get workflow activity logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow activity logs: {str(e)}")
+
+@app.get("/api/activity-logs")
+async def get_all_activity_logs(limit: int = 100):
+    """Get recent activity logs for all workflows"""
+    try:
+        logs = workflow_manager.status_tracker.get_recent_activity_logs(limit)
+        return {"logs": [log.dict() for log in logs], "count": len(logs)}
+    except Exception as e:
+        logger.error(f"Failed to get activity logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get activity logs: {str(e)}")
+
+@app.get("/api/model-performance")
+async def get_model_performance_history():
+    """Get model performance history across all workflows"""
+    try:
+        performance_history = workflow_manager.status_tracker.model_performance_history
+        return {"performance_history": performance_history}
+    except Exception as e:
+        logger.error(f"Failed to get model performance history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get model performance history: {str(e)}")
+
+@app.get("/api/system-resources")
+async def get_current_system_resources():
+    """Get current system resource usage"""
+    try:
+        resource_usage = workflow_manager.status_tracker._get_current_resource_usage()
+        return resource_usage.dict()
+    except Exception as e:
+        logger.error(f"Failed to get system resources: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get system resources: {str(e)}")
+
+@app.post("/api/workflow/{workflow_id}/update-agent-status")
+async def update_agent_status(workflow_id: str, agent_data: dict):
+    """Update agent status for a workflow (for external integrations)"""
+    try:
+        workflow_manager.status_tracker.update_agent_status(workflow_id, agent_data)
+        
+        # Broadcast the update
+        await websocket_manager.broadcast_agent_status(workflow_id, agent_data)
+        
+        return {"status": "success", "message": "Agent status updated"}
+    except Exception as e:
+        logger.error(f"Failed to update agent status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update agent status: {str(e)}")
+
+@app.post("/api/workflow/{workflow_id}/update-model-performance")
+async def update_model_performance(workflow_id: str, model_name: str, metrics: dict):
+    """Update model performance metrics for a workflow"""
+    try:
+        workflow_manager.status_tracker.update_model_performance(workflow_id, model_name, metrics)
+        
+        # Broadcast the update
+        await websocket_manager.broadcast_model_performance(workflow_id, {
+            "model_name": model_name,
+            "metrics": metrics
+        })
+        
+        return {"status": "success", "message": "Model performance updated"}
+    except Exception as e:
+        logger.error(f"Failed to update model performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update model performance: {str(e)}")
+
+@app.post("/api/workflow/{workflow_id}/add-warning")
+async def add_workflow_warning(workflow_id: str, warning: dict):
+    """Add a warning to a workflow"""
+    try:
+        warning_message = warning.get("message", "Unknown warning")
+        workflow_manager.status_tracker.add_warning(workflow_id, warning_message)
+        
+        # Broadcast the warning
+        await websocket_manager.broadcast_activity_log({
+            "timestamp": datetime.now().isoformat(),
+            "level": "warning",
+            "category": "system",
+            "source": "api",
+            "message": warning_message,
+            "workflow_id": workflow_id
+        })
+        
+        return {"status": "success", "message": "Warning added"}
+    except Exception as e:
+        logger.error(f"Failed to add workflow warning: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to add workflow warning: {str(e)}")
+
+@app.delete("/api/workflow/{workflow_id}")
+async def cleanup_workflow(workflow_id: str):
+    """Clean up a completed workflow from tracking"""
+    try:
+        if workflow_id in workflow_manager.status_tracker.workflow_statuses:
+            del workflow_manager.status_tracker.workflow_statuses[workflow_id]
+            return {"status": "success", "message": "Workflow cleaned up"}
+        else:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to cleanup workflow: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup workflow: {str(e)}")
+
+@app.post("/api/cleanup-old-workflows")
+async def cleanup_old_workflows(max_age_hours: int = 24):
+    """Clean up old completed workflows"""
+    try:
+        workflow_manager.status_tracker.cleanup_completed_workflows(max_age_hours)
+        return {"status": "success", "message": f"Cleaned up workflows older than {max_age_hours} hours"}
+    except Exception as e:
+        logger.error(f"Failed to cleanup old workflows: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup old workflows: {str(e)}")
+
 @app.get("/download-result/{result_id}")
 async def download_result(result_id: str):
     """Download a workflow result"""
@@ -770,8 +903,8 @@ async def serve_shootout_arena():
     shootout_html_path = os.path.join(project_root, "frontend", "llm_shootout.html")
     return FileResponse(shootout_html_path)
 
-@app.get("/api/documents")
-async def get_available_documents():
+@app.get("/api/llm-shootout/documents")
+async def get_available_documents_for_shootout():
     """Get list of available documents for shootout"""
     try:
         documents = await llm_shootout_manager.get_available_documents()

@@ -126,19 +126,69 @@ class LLMShootoutManager:
         """Get list of available documents for evaluation"""
         documents = []
         
-        # Check backend/uploads directory
-        uploads_dir = Path(__file__).parent / "uploads"
-        if uploads_dir.exists():
-            for file_path in uploads_dir.glob("*.pdf"):
-                documents.append({
-                    "id": file_path.name,
-                    "name": file_path.stem,
-                    "path": str(file_path),
-                    "size": file_path.stat().st_size,
-                    "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
-                })
+        # Check multiple possible upload directories
+        possible_dirs = [
+            Path(__file__).parent.parent / "uploads",  # Root uploads directory
+            Path(__file__).parent / "uploads",         # Backend uploads directory
+        ]
+        
+        for uploads_dir in possible_dirs:
+            if uploads_dir.exists():
+                # Support multiple file types
+                for pattern in ["*.pdf", "*.txt", "*.csv", "*.docx"]:
+                    for file_path in uploads_dir.glob(pattern):
+                        # Avoid duplicates
+                        if not any(doc["id"] == file_path.name for doc in documents):
+                            # Extract better display name
+                            display_name = self._extract_display_name(file_path)
+                            
+                            documents.append({
+                                "id": file_path.name,
+                                "name": display_name,
+                                "filename": file_path.name,
+                                "path": str(file_path),
+                                "size": file_path.stat().st_size,
+                                "size_formatted": self._format_file_size(file_path.stat().st_size),
+                                "type": file_path.suffix.lower(),
+                                "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
+                                "modified_formatted": datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                            })
+        
+        # Sort by modification time (newest first)
+        documents.sort(key=lambda x: x["modified"], reverse=True)
         
         return documents
+    
+    def _extract_display_name(self, file_path: Path) -> str:
+        """Extract a user-friendly display name from file path"""
+        # Remove UUID prefixes if present
+        name = file_path.stem
+        
+        # Check if it starts with a UUID pattern (8-4-4-4-12 characters)
+        import re
+        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        if re.match(uuid_pattern, name, re.IGNORECASE):
+            # Try to find a more meaningful name
+            # For now, just use the filename without UUID
+            name = "Document " + name[:8]
+        
+        # Clean up the name
+        name = name.replace("_", " ").replace("-", " ")
+        name = " ".join(word.capitalize() for word in name.split())
+        
+        return name
+    
+    def _format_file_size(self, size_bytes: int) -> str:
+        """Format file size in human-readable format"""
+        if size_bytes == 0:
+            return "0 B"
+        
+        size_names = ["B", "KB", "MB", "GB"]
+        import math
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return f"{s} {size_names[i]}"
     
     async def start_shootout(self, document_id: str, selected_models: List[str]) -> Dict[str, Any]:
         """Start an LLM shootout competition"""

@@ -161,6 +161,36 @@ class WorkflowManager {
             case 'workflow_progress':
                 this.updateWorkflowProgress(data.step, data.status, data.progress);
                 break;
+            case 'detailed_progress':
+                this.updateDetailedProgress(data.detailed_status);
+                break;
+            case 'agent_status':
+                this.updateAgentStatus(data.agent_status);
+                break;
+            case 'model_performance':
+                this.updateModelPerformance(data.model_metrics);
+                break;
+            case 'processing_stats':
+                this.updateProcessingStats(data.processing_stats);
+                break;
+            case 'resource_usage':
+                this.updateResourceUsage(data.resource_usage);
+                break;
+            case 'substep_progress':
+                this.updateSubstepProgress(data.step, data.substep);
+                break;
+            case 'activity_log':
+                this.addActivityLogEntry(data.activity);
+                break;
+            case 'crew_agent_activity':
+                this.updateCrewAgentActivity(data.agent_activity);
+                break;
+            case 'quality_metrics':
+                this.updateQualityMetrics(data.quality_metrics);
+                break;
+            case 'manager_agent_decision':
+                this.displayManagerAgentDecision(data.decision_data);
+                break;
             case 'log':
                 this.logMessage(data.message, data.level);
                 break;
@@ -1402,6 +1432,457 @@ class WorkflowManager {
         this.updateDocumentListDisplay();
         
         this.logMessage(`Removed document from upload list`, 'info');
+    }
+
+    // Enhanced Status Visualization Methods
+    
+    updateDetailedProgress(detailedStatus) {
+        // Update the existing progress display with enhanced details
+        if (detailedStatus.current_step) {
+            this.updateWorkflowProgress(detailedStatus.current_step, 'active', detailedStatus.progress_percentage);
+        }
+        
+        // Update sub-step progress if available
+        if (detailedStatus.current_substep && detailedStatus.substep_progress) {
+            this.updateSubstepProgress(detailedStatus.current_step, {
+                name: detailedStatus.current_substep,
+                progress: detailedStatus.substep_progress
+            });
+        }
+        
+        // Update processing stats
+        if (detailedStatus.processing_stats) {
+            this.updateProcessingStats(detailedStatus.processing_stats);
+        }
+        
+        // Update resource usage
+        if (detailedStatus.resource_usage) {
+            this.updateResourceUsage(detailedStatus.resource_usage);
+        }
+        
+        // Update agent statuses
+        if (detailedStatus.active_agents && detailedStatus.active_agents.length > 0) {
+            detailedStatus.active_agents.forEach(agent => {
+                this.updateAgentStatus(agent);
+            });
+        }
+        
+        // Update model performance
+        if (detailedStatus.model_performance && detailedStatus.model_performance.length > 0) {
+            detailedStatus.model_performance.forEach(model => {
+                this.updateModelPerformance(model);
+            });
+        }
+    }
+    
+    updateAgentStatus(agentStatus) {
+        // Create or update agent status display
+        let agentContainer = document.getElementById('agentStatusContainer');
+        if (!agentContainer) {
+            agentContainer = this.createAgentStatusContainer();
+        }
+        
+        const agentId = agentStatus.agent_id || agentStatus.agent_name;
+        let agentElement = document.getElementById(`agent-${agentId}`);
+        
+        if (!agentElement) {
+            agentElement = this.createAgentStatusElement(agentStatus);
+            agentContainer.appendChild(agentElement);
+        } else {
+            this.updateAgentStatusElement(agentElement, agentStatus);
+        }
+    }
+    
+    updateModelPerformance(modelMetrics) {
+        // Create or update model performance display
+        let performanceContainer = document.getElementById('modelPerformanceContainer');
+        if (!performanceContainer) {
+            performanceContainer = this.createModelPerformanceContainer();
+        }
+        
+        const modelName = modelMetrics.model_name;
+        let modelElement = document.getElementById(`model-${modelName.replace(/[^a-zA-Z0-9]/g, '-')}`);
+        
+        if (!modelElement) {
+            modelElement = this.createModelPerformanceElement(modelMetrics);
+            performanceContainer.appendChild(modelElement);
+        } else {
+            this.updateModelPerformanceElement(modelElement, modelMetrics);
+        }
+    }
+    
+    updateProcessingStats(processingStats) {
+        // Update processing statistics display
+        let statsContainer = document.getElementById('processingStatsContainer');
+        if (!statsContainer) {
+            statsContainer = this.createProcessingStatsContainer();
+        }
+        
+        // Update individual stats
+        this.updateStatElement('documentsProcessed', processingStats.documents_processed, processingStats.total_documents);
+        this.updateStatElement('chunksCreated', processingStats.chunks_created);
+        this.updateStatElement('embeddingsGenerated', processingStats.embeddings_generated);
+        this.updateStatElement('tokensProcessed', this.formatTokenCount(processingStats.tokens_processed));
+        this.updateStatElement('processingRate', `${processingStats.processing_rate.toFixed(2)}/sec`);
+        
+        if (processingStats.estimated_time_remaining) {
+            this.updateStatElement('timeRemaining', this.formatTimeRemaining(processingStats.estimated_time_remaining));
+        }
+    }
+    
+    updateResourceUsage(resourceUsage) {
+        // Update system resource usage display
+        let resourceContainer = document.getElementById('resourceUsageContainer');
+        if (!resourceContainer) {
+            resourceContainer = this.createResourceUsageContainer();
+        }
+        
+        // Update CPU usage
+        this.updateResourceBar('cpu', resourceUsage.cpu_usage, '%');
+        
+        // Update Memory usage
+        this.updateResourceBar('memory', resourceUsage.memory_usage, '%');
+        
+        // Update GPU usage if available
+        if (resourceUsage.gpu_usage && resourceUsage.gpu_usage.length > 0) {
+            resourceUsage.gpu_usage.forEach((gpu, index) => {
+                this.updateResourceBar(`gpu-${index}`, gpu.load, '%', gpu.name);
+            });
+        }
+    }
+    
+    updateSubstepProgress(step, substep) {
+        // Update sub-step progress within main steps
+        const stepElement = document.getElementById(`step-${step}`);
+        if (stepElement) {
+            let substepElement = stepElement.querySelector('.substep-progress');
+            if (!substepElement) {
+                substepElement = document.createElement('div');
+                substepElement.className = 'substep-progress mt-2';
+                stepElement.appendChild(substepElement);
+            }
+            
+            substepElement.innerHTML = `
+                <div class="small text-muted">${substep.name}</div>
+                <div class="progress progress-sm">
+                    <div class="progress-bar" style="width: ${substep.progress}%"></div>
+                </div>
+            `;
+        }
+    }
+    
+    addActivityLogEntry(activity) {
+        // Add enhanced activity log entry
+        const timestamp = new Date(activity.timestamp).toLocaleTimeString();
+        const logEntry = `[${timestamp}] [${activity.category.toUpperCase()}] [${activity.source}] ${activity.message}`;
+        this.logMessage(logEntry, activity.level);
+    }
+    
+    updateCrewAgentActivity(agentActivity) {
+        // Update CrewAI specific agent activity
+        this.logMessage(`Agent ${agentActivity.agent_name}: ${agentActivity.current_task}`, 'info');
+        
+        // Update agent status if we have the container
+        this.updateAgentStatus({
+            agent_id: agentActivity.agent_name,
+            agent_name: agentActivity.agent_name,
+            current_task: agentActivity.current_task,
+            status: 'working',
+            progress: agentActivity.task_progress || 0
+        });
+    }
+    
+    updateQualityMetrics(qualityMetrics) {
+        // Update quality metrics display
+        let qualityContainer = document.getElementById('qualityMetricsContainer');
+        if (!qualityContainer) {
+            qualityContainer = this.createQualityMetricsContainer();
+        }
+        
+        Object.entries(qualityMetrics).forEach(([metric, value]) => {
+            this.updateStatElement(metric, value);
+        });
+    }
+    
+    displayManagerAgentDecision(decisionData) {
+        // Display Manager Agent decision-making process
+        this.logMessage(`Manager Agent Decision: ${decisionData.decision}`, 'info');
+        if (decisionData.reasoning) {
+            this.logMessage(`Reasoning: ${decisionData.reasoning}`, 'info');
+        }
+    }
+    
+    // Helper methods for creating enhanced status containers
+    
+    createAgentStatusContainer() {
+        const container = document.createElement('div');
+        container.id = 'agentStatusContainer';
+        container.className = 'enhanced-status-container mt-3';
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-users me-2"></i>Agent Status</h6>
+                </div>
+                <div class="card-body" id="agentStatusContent">
+                    <div class="text-muted text-center py-2">No active agents</div>
+                </div>
+            </div>
+        `;
+        
+        // Insert after the progress panel
+        const progressPanel = document.querySelector('.card:has(#overallProgress)').parentElement;
+        progressPanel.appendChild(container);
+        return container;
+    }
+    
+    createModelPerformanceContainer() {
+        const container = document.createElement('div');
+        container.id = 'modelPerformanceContainer';
+        container.className = 'enhanced-status-container mt-3';
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-tachometer-alt me-2"></i>Model Performance</h6>
+                </div>
+                <div class="card-body" id="modelPerformanceContent">
+                    <div class="text-muted text-center py-2">No performance data</div>
+                </div>
+            </div>
+        `;
+        
+        const progressPanel = document.querySelector('.card:has(#overallProgress)').parentElement;
+        progressPanel.appendChild(container);
+        return container;
+    }
+    
+    createProcessingStatsContainer() {
+        const container = document.createElement('div');
+        container.id = 'processingStatsContainer';
+        container.className = 'enhanced-status-container mt-3';
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-chart-line me-2"></i>Processing Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stat-item">
+                                <span class="stat-label">Documents:</span>
+                                <span class="stat-value" id="documentsProcessed">0/0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Chunks:</span>
+                                <span class="stat-value" id="chunksCreated">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Embeddings:</span>
+                                <span class="stat-value" id="embeddingsGenerated">0</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-item">
+                                <span class="stat-label">Tokens:</span>
+                                <span class="stat-value" id="tokensProcessed">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Rate:</span>
+                                <span class="stat-value" id="processingRate">0/sec</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">ETA:</span>
+                                <span class="stat-value" id="timeRemaining">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const progressPanel = document.querySelector('.card:has(#overallProgress)').parentElement;
+        progressPanel.appendChild(container);
+        return container;
+    }
+    
+    createResourceUsageContainer() {
+        const container = document.createElement('div');
+        container.id = 'resourceUsageContainer';
+        container.className = 'enhanced-status-container mt-3';
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-microchip me-2"></i>System Resources</h6>
+                </div>
+                <div class="card-body">
+                    <div class="resource-item">
+                        <span class="resource-label">CPU:</span>
+                        <div class="progress">
+                            <div class="progress-bar" id="cpuBar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">Memory:</span>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" id="memoryBar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div id="gpuResources"></div>
+                </div>
+            </div>
+        `;
+        
+        const progressPanel = document.querySelector('.card:has(#overallProgress)').parentElement;
+        progressPanel.appendChild(container);
+        return container;
+    }
+    
+    createQualityMetricsContainer() {
+        const container = document.createElement('div');
+        container.id = 'qualityMetricsContainer';
+        container.className = 'enhanced-status-container mt-3';
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-star me-2"></i>Quality Metrics</h6>
+                </div>
+                <div class="card-body" id="qualityMetricsContent">
+                    <div class="text-muted text-center py-2">No quality data</div>
+                </div>
+            </div>
+        `;
+        
+        const progressPanel = document.querySelector('.card:has(#overallProgress)').parentElement;
+        progressPanel.appendChild(container);
+        return container;
+    }
+    
+    createAgentStatusElement(agentStatus) {
+        const element = document.createElement('div');
+        element.id = `agent-${agentStatus.agent_id}`;
+        element.className = 'agent-status-item mb-2';
+        element.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${agentStatus.agent_name}</strong>
+                    <div class="small text-muted">${agentStatus.current_task}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-${this.getStatusColor(agentStatus.status)}">${agentStatus.status}</span>
+                    <div class="small">${agentStatus.progress}%</div>
+                </div>
+            </div>
+            <div class="progress progress-sm mt-1">
+                <div class="progress-bar" style="width: ${agentStatus.progress}%"></div>
+            </div>
+        `;
+        
+        // Replace "no active agents" message if it exists
+        const content = document.getElementById('agentStatusContent');
+        if (content.querySelector('.text-muted')) {
+            content.innerHTML = '';
+        }
+        
+        return element;
+    }
+    
+    updateAgentStatusElement(element, agentStatus) {
+        element.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${agentStatus.agent_name}</strong>
+                    <div class="small text-muted">${agentStatus.current_task}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-${this.getStatusColor(agentStatus.status)}">${agentStatus.status}</span>
+                    <div class="small">${agentStatus.progress}%</div>
+                </div>
+            </div>
+            <div class="progress progress-sm mt-1">
+                <div class="progress-bar" style="width: ${agentStatus.progress}%"></div>
+            </div>
+        `;
+    }
+    
+    createModelPerformanceElement(modelMetrics) {
+        const element = document.createElement('div');
+        element.id = `model-${modelMetrics.model_name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        element.className = 'model-performance-item mb-2';
+        element.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${modelMetrics.model_name}</strong>
+                    <div class="small text-muted">${modelMetrics.tokens_per_second.toFixed(1)} tokens/sec</div>
+                </div>
+                <div class="text-end">
+                    <div class="small">${modelMetrics.response_time_ms.toFixed(0)}ms</div>
+                    <div class="small text-success">${(modelMetrics.success_rate * 100).toFixed(1)}%</div>
+                </div>
+            </div>
+        `;
+        
+        // Replace "no performance data" message if it exists
+        const content = document.getElementById('modelPerformanceContent');
+        if (content.querySelector('.text-muted')) {
+            content.innerHTML = '';
+        }
+        
+        return element;
+    }
+    
+    updateModelPerformanceElement(element, modelMetrics) {
+        element.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${modelMetrics.model_name}</strong>
+                    <div class="small text-muted">${modelMetrics.tokens_per_second.toFixed(1)} tokens/sec</div>
+                </div>
+                <div class="text-end">
+                    <div class="small">${modelMetrics.response_time_ms.toFixed(0)}ms</div>
+                    <div class="small text-success">${(modelMetrics.success_rate * 100).toFixed(1)}%</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    updateStatElement(statId, value, total = null) {
+        const element = document.getElementById(statId);
+        if (element) {
+            if (total !== null) {
+                element.textContent = `${value}/${total}`;
+            } else {
+                element.textContent = value;
+            }
+        }
+    }
+    
+    updateResourceBar(resourceId, value, unit, label = null) {
+        const bar = document.getElementById(`${resourceId}Bar`);
+        if (bar) {
+            bar.style.width = `${value}%`;
+            bar.textContent = `${value.toFixed(1)}${unit}`;
+            
+            // Update color based on usage
+            bar.className = 'progress-bar';
+            if (value > 80) bar.classList.add('bg-danger');
+            else if (value > 60) bar.classList.add('bg-warning');
+            else bar.classList.add('bg-success');
+        }
+    }
+    
+    getStatusColor(status) {
+        switch (status) {
+            case 'working': return 'primary';
+            case 'completed': return 'success';
+            case 'error': return 'danger';
+            case 'idle': return 'secondary';
+            default: return 'secondary';
+        }
+    }
+    
+    formatTimeRemaining(seconds) {
+        if (seconds < 60) return `${seconds.toFixed(0)}s`;
+        if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
+        return `${(seconds / 3600).toFixed(1)}h`;
     }
 
     async clearDocuments() {

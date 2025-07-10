@@ -1873,3 +1873,546 @@ small {
         border: 1px solid #ccc !important;
     }
 }
+
+/* Enhanced Status Visualization Styles */
+
+.enhanced-status-container {
+    margin-top: 1.5rem;
+}
+
+.enhanced-status-container .card {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.enhanced-status-container .card-header {
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(13, 110, 253, 0.1));
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+}
+
+.enhanced-status-container .card-header h6 {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.enhanced-status-container .card-header i {
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+/* Agent Status Styles */
+.agent-status-item {
+    padding: 1rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.agent-status-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.agent-status-item:last-child {
+    margin-bottom: 0;
+}
+
+.agent-status-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.agent-status-item .small {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+    line-height: 1.3;
+}
+
+.agent-status-item .badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agent-status-item .progress-sm {
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.agent-status-item .progress-sm .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Model Performance Styles */
+.model-performance-item {
+    padding: 1rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.model-performance-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--success-color), var(--info-color));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.model-performance-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.model-performance-item:hover::before {
+    opacity: 1;
+}
+
+.model-performance-item:last-child {
+    margin-bottom: 0;
+}
+
+.model-performance-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.model-performance-item .small {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.model-performance-item .text-success {
+    color: var(--success-color) !important;
+    font-weight: 600;
+}
+
+/* Processing Statistics Styles */
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    margin: 0 -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: 6px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Resource Usage Styles */
+.resource-item {
+    margin-bottom: 1rem;
+}
+
+.resource-item:last-child {
+    margin-bottom: 0;
+}
+
+.resource-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.resource-item .progress {
+    height: 12px;
+    border-radius: 6px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.resource-item .progress-bar {
+    height: 100%;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.resource-item .progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: resourceShimmer 2s infinite;
+}
+
+@keyframes resourceShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.resource-item .progress-bar.bg-success {
+    background: linear-gradient(90deg, var(--success-color), #20c997);
+}
+
+.resource-item .progress-bar.bg-warning {
+    background: linear-gradient(90deg, var(--warning-color), #ffb347);
+}
+
+.resource-item .progress-bar.bg-danger {
+    background: linear-gradient(90deg, var(--danger-color), #ff6b6b);
+}
+
+/* GPU Resources */
+#gpuResources {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+#gpuResources .resource-item {
+    background-color: rgba(13, 202, 240, 0.05);
+    border: 1px solid rgba(13, 202, 240, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+#gpuResources .resource-label {
+    color: var(--info-color);
+    font-weight: 600;
+}
+
+/* Sub-step Progress Styles */
+.substep-progress {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.substep-progress .small {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.substep-progress .progress-sm {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.substep-progress .progress-sm .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.substep-progress .progress-sm .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progressShine 2s infinite;
+}
+
+@keyframes progressShine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Quality Metrics Styles */
+.quality-metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.quality-metric-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.quality-metric-item:last-child {
+    margin-bottom: 0;
+}
+
+.quality-metric-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.quality-metric-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Enhanced Progress Bar Animations */
+@keyframes progressPulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+    }
+    50% { 
+        box-shadow: 0 0 0 8px rgba(13, 110, 253, 0);
+    }
+}
+
+.step-item.active .progress-bar {
+    animation: progressPulse 2s infinite;
+}
+
+/* Status Badge Colors */
+.badge.bg-primary {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3) !important;
+    color: white;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, var(--success-color), #146c43) !important;
+    color: white;
+    box-shadow: 0 2px 8px rgba(25, 135, 84, 0.3);
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, var(--warning-color), #b08800) !important;
+    color: #000;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, var(--danger-color), #b02a37) !important;
+    color: white;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.badge.bg-secondary {
+    background: linear-gradient(135deg, #6c757d, #495057) !important;
+    color: white;
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* Empty State Styling for Enhanced Containers */
+.enhanced-status-container .text-muted.text-center {
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.9rem;
+    background: linear-gradient(135deg, transparent, rgba(255,255,255,0.02), transparent);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+/* Responsive Design for Enhanced Status */
+@media (max-width: 768px) {
+    .enhanced-status-container {
+        margin-top: 1rem;
+    }
+    
+    .enhanced-status-container .card-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .enhanced-status-container .card-body {
+        padding: 1rem;
+    }
+    
+    .agent-status-item,
+    .model-performance-item {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-item {
+        padding: 0.5rem 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .resource-item .progress {
+        height: 10px;
+    }
+    
+    .resource-item .progress-bar {
+        font-size: 0.75rem;
+    }
+    
+    .substep-progress {
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .quality-metric-item {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* Dark mode enhancements for enhanced status */
+@media (prefers-color-scheme: dark) {
+    .enhanced-status-container .card {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    
+    .agent-status-item:hover,
+    .model-performance-item:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    
+    .resource-item .progress-bar {
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+}
+
+/* Accessibility improvements */
+.enhanced-status-container .card:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.agent-status-item:focus,
+.model-performance-item:focus,
+.quality-metric-item:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .enhanced-status-container .card {
+        border: 2px solid var(--text-primary);
+    }
+    
+    .agent-status-item,
+    .model-performance-item,
+    .quality-metric-item {
+        border: 2px solid var(--border-color);
+    }
+    
+    .resource-item .progress {
+        border: 2px solid var(--text-primary);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .agent-status-item,
+    .model-performance-item,
+    .quality-metric-item,
+    .stat-item {
+        transition: none;
+    }
+    
+    .resource-item .progress-bar::before,
+    .substep-progress .progress-sm .progress-bar::after {
+        animation: none;
+    }
+    
+    .step-item.active .progress-bar {
+        animation: none;
+    }
+    
+    @keyframes resourceShimmer {
+        to { transform: none; }
+    }
+    
+    @keyframes progressShine {
+        to { transform: none; }
+    }
+    
+    @keyframes progressPulse {
+        to { transform: none; }
+    }
+}

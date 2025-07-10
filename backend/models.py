@@ -80,3 +80,91 @@ class WebSocketMessage(BaseModel):
     type: str
     data: Dict[str, Any]
     timestamp: str
+
+# Enhanced Status Models for Rich Visualization
+
+class AgentStatus(BaseModel):
+    agent_id: str
+    agent_name: str
+    current_task: str
+    status: str  # "idle", "working", "completed", "error"
+    progress: int  # 0-100
+    start_time: Optional[str] = None
+    estimated_completion: Optional[str] = None
+    performance_metrics: Dict[str, Any] = {}
+
+class ModelPerformanceMetrics(BaseModel):
+    model_name: str
+    response_time_ms: float
+    tokens_per_second: float
+    success_rate: float
+    error_count: int
+    total_requests: int
+    average_quality_score: Optional[float] = None
+    resource_usage: Dict[str, Any] = {}
+
+class SubStepProgress(BaseModel):
+    step_id: str
+    step_name: str
+    description: str
+    status: str  # "pending", "active", "completed", "error"
+    progress: int  # 0-100
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    details: Dict[str, Any] = {}
+
+class ProcessingStats(BaseModel):
+    documents_processed: int
+    total_documents: int
+    chunks_created: int
+    embeddings_generated: int
+    tokens_processed: int
+    processing_rate: float  # items per second
+    estimated_time_remaining: Optional[float] = None
+
+class SystemResourceUsage(BaseModel):
+    cpu_usage: float
+    memory_usage: float
+    gpu_usage: List[Dict[str, Any]] = []
+    disk_usage: float
+    network_io: Dict[str, float] = {}
+    timestamp: str
+
+class DetailedWorkflowStatus(BaseModel):
+    workflow_id: str
+    status: WorkflowStatus
+    current_step: str
+    current_substep: Optional[str] = None
+    progress_percentage: int
+    substep_progress: int = 0
+    active_agents: List[AgentStatus] = []
+    model_performance: List[ModelPerformanceMetrics] = []
+    processing_stats: ProcessingStats
+    resource_usage: SystemResourceUsage
+    sub_steps: List[SubStepProgress] = []
+    error_message: Optional[str] = None
+    warnings: List[str] = []
+    start_time: str
+    estimated_completion: Optional[str] = None
+    quality_metrics: Dict[str, Any] = {}
+
+class ActivityLogEntry(BaseModel):
+    timestamp: str
+    level: str  # "info", "warning", "error", "debug", "success"
+    category: str  # "system", "agent", "model", "processing", "user"
+    source: str  # agent name, model name, or system component
+    message: str
+    details: Dict[str, Any] = {}
+    workflow_id: Optional[str] = None
+
+class CrewAIAgentActivity(BaseModel):
+    agent_name: str
+    role: str
+    current_goal: str
+    current_task: str
+    task_progress: int
+    thoughts: Optional[str] = None
+    tools_used: List[str] = []
+    collaboration_status: str  # "independent", "waiting", "collaborating"
+    performance_score: Optional[float] = None
+    execution_time: Optional[float] = None

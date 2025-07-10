@@ -96,6 +96,88 @@ class WebSocketManager:
             "error": error
         })
     
+    # Enhanced status broadcasting methods
+    
+    async def broadcast_detailed_progress(self, workflow_id: str, detailed_status: dict):
+        """Broadcast detailed workflow progress with sub-steps and metrics"""
+        await self.broadcast({
+            "type": "detailed_progress",
+            "workflow_id": workflow_id,
+            "detailed_status": detailed_status
+        })
+    
+    async def broadcast_agent_status(self, workflow_id: str, agent_status: dict):
+        """Broadcast CrewAI agent status update"""
+        await self.broadcast({
+            "type": "agent_status",
+            "workflow_id": workflow_id,
+            "agent_status": agent_status
+        })
+    
+    async def broadcast_model_performance(self, workflow_id: str, model_metrics: dict):
+        """Broadcast model performance metrics"""
+        await self.broadcast({
+            "type": "model_performance",
+            "workflow_id": workflow_id,
+            "model_metrics": model_metrics
+        })
+    
+    async def broadcast_processing_stats(self, workflow_id: str, processing_stats: dict):
+        """Broadcast processing statistics"""
+        await self.broadcast({
+            "type": "processing_stats",
+            "workflow_id": workflow_id,
+            "processing_stats": processing_stats
+        })
+    
+    async def broadcast_resource_usage(self, workflow_id: str, resource_usage: dict):
+        """Broadcast system resource usage"""
+        await self.broadcast({
+            "type": "resource_usage",
+            "workflow_id": workflow_id,
+            "resource_usage": resource_usage
+        })
+    
+    async def broadcast_substep_progress(self, workflow_id: str, step: str, substep: dict):
+        """Broadcast sub-step progress within a main workflow step"""
+        await self.broadcast({
+            "type": "substep_progress",
+            "workflow_id": workflow_id,
+            "step": step,
+            "substep": substep
+        })
+    
+    async def broadcast_activity_log(self, activity_entry: dict):
+        """Broadcast detailed activity log entry"""
+        await self.broadcast({
+            "type": "activity_log",
+            "activity": activity_entry
+        })
+    
+    async def broadcast_crew_agent_activity(self, workflow_id: str, agent_activity: dict):
+        """Broadcast CrewAI agent specific activity"""
+        await self.broadcast({
+            "type": "crew_agent_activity",
+            "workflow_id": workflow_id,
+            "agent_activity": agent_activity
+        })
+    
+    async def broadcast_quality_metrics(self, workflow_id: str, quality_metrics: dict):
+        """Broadcast quality assessment metrics"""
+        await self.broadcast({
+            "type": "quality_metrics",
+            "workflow_id": workflow_id,
+            "quality_metrics": quality_metrics
+        })
+    
+    async def broadcast_manager_agent_decision(self, workflow_id: str, decision_data: dict):
+        """Broadcast Manager Agent decision-making process"""
+        await self.broadcast({
+            "type": "manager_agent_decision",
+            "workflow_id": workflow_id,
+            "decision_data": decision_data
+        })
+    
     def get_connection_count(self) -> int:
         """Get the number of active connections"""
         return len(self.active_connections)

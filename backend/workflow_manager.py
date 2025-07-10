@@ -16,6 +16,7 @@ from backend.llm_manager import LLMManager
 from backend.rag_system import RAGSystem
 from backend.enhanced_alpaca_generator import EnhancedAlpacaGenerator
 from backend.manager_agent import ManagerAgent
+from backend.enhanced_status_tracker import EnhancedStatusTracker
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,22 @@ class WorkflowManager:
     def __init__(self):
         self.active_workflows: Dict[str, Dict] = {}
         self.llm_manager = LLMManager()
+        self.status_tracker = EnhancedStatusTracker()
     
     async def run_workflow(self, workflow_id: str, config: WorkflowConfig, websocket_manager):
         """Run the CrewAI workflow"""
         try:
-            # Initialize workflow tracking
+            # Initialize enhanced workflow tracking
+            config_dict = {
+                "documents": [doc.dict() for doc in config.documents],
+                "manager_model": config.manager_model,
+                "embedding_model": config.embedding_model,
+                "workflow_type": config.workflow_type
+            }
+            
+            detailed_status = self.status_tracker.initialize_workflow(workflow_id, config_dict)
+            
+            # Initialize basic workflow tracking for backward compatibility
             self.active_workflows[workflow_id] = {
                 "status": WorkflowStatus.RUNNING,
                 "config": config,
@@ -38,7 +50,7 @@ class WorkflowManager:
                 "progress": 0
             }
             
-            # Send initial status
+            # Send initial status with enhanced details
             await websocket_manager.broadcast({
                 "type": "workflow_progress",
                 "workflow_id": workflow_id,
@@ -46,6 +58,9 @@ class WorkflowManager:
                 "status": "active",
                 "progress": 0
             })
+            
+            # Send detailed status
+            await websocket_manager.broadcast_detailed_progress(workflow_id, detailed_status.dict())
             
             # Step 1: Document Processing
             await self._update_workflow_step(workflow_id, "document-processing", "active", 10, websocket_manager)
